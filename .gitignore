@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+*.user
+
+# Backend Python
+BACKEND/__pycache__/
+BACKEND/*.pyc
+BACKEND/*.log
+
+# Sesiones y exportaciones generadas por el usuario en tiempo de uso
+/Sesiones/
+/Exportaciones/

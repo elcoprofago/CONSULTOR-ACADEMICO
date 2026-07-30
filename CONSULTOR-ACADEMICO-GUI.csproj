@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Habilita System.Windows.Forms.FolderBrowserDialog (WPF no tiene
+         selector de carpetas nativo) para "carpeta de exportación por
+         defecto" en la ventana de Configuración. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>CONSULTOR-ACADEMICO-GUI</AssemblyName>
+    <RootNamespace>ConsultorAcademicoGui</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ver CONSULTOR-GUI.csproj: UseWindowsForms + UseWPF generan global
+         usings ambiguos entre System.Windows y System.Windows.Forms para
+         tipos con el mismo nombre corto (Application, Button, TextBox,
+         Brush, etc.). -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.0" />
+    <PackageReference Include="QuestPDF" Version="2026.7.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\circle_01.png" />
+    <Resource Include="Assets\circle_02.png" />
+    <Resource Include="Assets\circle_03.png" />
+    <Resource Include="Assets\circle_04.png" />
+    <Resource Include="Assets\circle_05.png" />
+    <Resource Include="Assets\circle_06.png" />
+    <Resource Include="Assets\circle_07.png" />
+    <Resource Include="Assets\circle_08.png" />
+    <Resource Include="Assets\circle_09.png" />
+    <Resource Include="Assets\marco.png" />
+    <Resource Include="Assets\rueda1.png" />
+    <Resource Include="Assets\rueda2.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="BACKEND\**" />
+    <None Remove="BACKEND\**" />
+    <Compile Remove="Sesiones\**" />
+    <None Remove="Sesiones\**" />
+    <Compile Remove="Exportaciones\**" />
+    <None Remove="Exportaciones\**" />
+  </ItemGroup>
+
+</Project>
