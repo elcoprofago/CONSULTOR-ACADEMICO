@@ -62,6 +62,46 @@
             <Setter Property="Padding" Value="5,4"/>
         </Style>
 
+        <!-- ToggleButton (desplegable de filtro y el de historial): la
+             plantilla por defecto de WPF pinta el hover en celeste claro
+             (#BEE6FD) y no toca el Foreground (gris claro): con el mouse
+             encima el texto desaparecía. Misma plantilla que el Button
+             global, con hover oscuro y estado "abierto" (IsChecked). Los
+             triggers usan TargetName porque un Background local del elemento
+             le gana a un Trigger sobre la propiedad. -->
+        <Style TargetType="ToggleButton">
+            <Setter Property="Background" Value="#FF2E2E2E"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF3C3C3C"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF454545"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Cada ComboBoxItem se declara con Content="docx" (string plano: el
              code-behind lee ese string directo, p. ej.
              "(...).Content as string" en SettingsWindow.xaml.cs), así que WPF
@@ -77,8 +117,20 @@
              ContentTemplate explícito con un TextBlock cuyo Foreground es
              valor local: un valor local siempre gana, sin importar el Style
              implícito global. -->
+        <!-- ContentTemplate en el propio ComboBoxItem (y no ItemTemplate en el
+             ComboBox) porque el cuadro de selección -lo que se ve con el
+             desplegable cerrado- toma Content y ContentTemplate del
+             ComboBoxItem elegido: sin esto el valor elegido se dibujaba en
+             gris claro sobre fondo claro (ver CONSULTOR-GUI, mismo arreglo). -->
         <Style TargetType="ComboBoxItem">
             <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" Foreground="Black"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBoxItem">
