@@ -24,13 +24,12 @@ namespace ConsultorAcademicoGui
     {
         private const int BackendPort = 8001;
         internal static readonly string BackendBaseUrl = $"http://127.0.0.1:{BackendPort}";
-        private const string VenvPython = @"E:\INFO\DERECHO\Jurisprudencia\C.S.J.N\CSJN-PROYECTO\CSJN-SCRIPTS\venv\Scripts\python.exe";
-        private const string BackendDir = @"E:\INFO\DERECHO\Jurisprudencia\C.S.J.N\CONSULTOR-ACADEMICO-GUI\BACKEND";
+        private const string VenvPython = @"F:\INFO\DERECHO\Jurisprudencia\C.S.J.N\CSJN-PROYECTO\CSJN-SCRIPTS\venv\Scripts\python.exe";
+        private const string BackendDir = @"F:\INFO\DERECHO\Jurisprudencia\C.S.J.N\CONSULTOR-ACADEMICO-GUI\BACKEND";
 
         private const int LlamaPort = 9001;
-        private const string LlamaVendorPath = @"C:\Users\Rodolfo\.lmstudio\extensions\backends\vendor\win-llama-cuda12-vendor-v2";
-        private const string LlamaServerExe = @"C:\Users\Rodolfo\.lmstudio\extensions\backends\llama.cpp-win-x86_64-nvidia-cuda12-avx2-2.23.1\llama-server.exe";
-        private const string LlamaModelPath = @"E:\Models\bartowski\Phi-3-medium-128k-instruct-GGUF\Phi-3-medium-128k-instruct-Q3_K_S.gguf";
+        private const string LlamaServerExe = @"E:\llama-server\llama-server.exe";
+        private const string LlamaModelPath = @"E:\Models\unsloth\Qwen3.5-9B-GGUF\Qwen3.5-9B-Q4_K_M.gguf";
 
         private const int PageSize = 10;
 
@@ -94,7 +93,10 @@ namespace ConsultorAcademicoGui
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            await IniciarBackendAsync();
+            bool backendListo = await IniciarBackendAsync();
+            // Después del backend y no antes (mismo criterio que CONSULTOR-GUI:
+            // el backend necesita su margen de commit y llama va al final).
+            if (backendListo) await IniciarLlamaSiHaceFaltaAsync();
             await CargarFiltroAsync();
             SetupPerfTimer();
         }
@@ -236,7 +238,24 @@ namespace ConsultorAcademicoGui
             BtnConsultar.IsEnabled = listo;
         }
 
-        private async Task IniciarBackendAsync()
+        // Arranca llama-server solo si nadie lo levantó ya en el puerto propio.
+        private async Task IniciarLlamaSiHaceFaltaAsync()
+        {
+            try
+            {
+                var resp = await _http.GetAsync($"http://127.0.0.1:{LlamaPort}/health");
+                if (resp.IsSuccessStatusCode)
+                {
+                    Log($"llama-server ya estaba corriendo (puerto {LlamaPort}); no se lanza otro.", "INFO");
+                    return;
+                }
+            }
+            catch { /* no hay nada escuchando: hay que lanzarlo */ }
+            BtnIniciarLlama_Click(this, new RoutedEventArgs());
+        }
+
+        // true cuando el backend responde /health; false si no arrancó o no respondió a tiempo.
+        private async Task<bool> IniciarBackendAsync()
         {
             SetControlesListos(false);
             Log("Iniciando servicio backend (FastAPI)...", "INFO");
@@ -283,7 +302,7 @@ namespace ConsultorAcademicoGui
             catch (Exception ex)
             {
                 Log($"No se pudo iniciar el backend: {ex.Message}", "ERROR");
-                return;
+                return false;
             }
 
             // Carga embeddings + índice FAISS de la biblioteca antes de responder /health.
@@ -296,13 +315,14 @@ namespace ConsultorAcademicoGui
                     {
                         Log("Backend listo.", "OK");
                         SetControlesListos(true);
-                        return;
+                        return true;
                     }
                 }
                 catch { /* aún no levantó */ }
                 await Task.Delay(1000);
             }
             Log("El backend no respondió a tiempo. Revisá el log de arriba.", "ERROR");
+            return false;
         }
 
         // ===================== Filtro de documentos =====================
@@ -716,7 +736,9 @@ namespace ConsultorAcademicoGui
                 psi.ArgumentList.Add("--cache-type-k"); psi.ArgumentList.Add("q8_0");
                 psi.ArgumentList.Add("--cache-type-v"); psi.ArgumentList.Add("q8_0");
 
-                psi.EnvironmentVariables["PATH"] = LlamaVendorPath + ";" + Environment.GetEnvironmentVariable("PATH");
+                // Qwen3.5 razona por defecto y ese razonamiento gastaría los
+                // max_tokens de consultar.py antes de responder.
+                psi.ArgumentList.Add("--reasoning"); psi.ArgumentList.Add("off");
 
                 _llamaProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
                 _llamaProcess.OutputDataReceived += (s, ev) => { if (ev.Data != null) Log($"[llama-server] {ev.Data}", "INFO"); };

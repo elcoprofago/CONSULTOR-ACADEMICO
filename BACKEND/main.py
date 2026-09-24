@@ -35,7 +35,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-ACADEMICO_SCRIPTS_DIR = Path(r"E:\INFO\DERECHO\Jurisprudencia\C.S.J.N\ACADEMICO-PROYECTO\ACADEMICO-SCRIPTS")
+# BACKEND -> CONSULTOR-ACADEMICO-GUI -> C.S.J.N: sin letra de unidad fija.
+ACADEMICO_SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "ACADEMICO-PROYECTO" / "ACADEMICO-SCRIPTS"
 sys.path.insert(0, str(ACADEMICO_SCRIPTS_DIR))
 
 print("Cargando biblioteca académica (embeddings + índice FAISS)...", flush=True)
