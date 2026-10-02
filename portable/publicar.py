@@ -15,6 +15,7 @@ La versión es la <Version> de CONSULTOR-ACADEMICO-GUI.csproj. Se niega a public
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -104,17 +105,20 @@ def main():
     zip_path = armar_zip(v, carpeta)
     verificar_zip(zip_path, v)
     if a.prueba:
-        print(f"--prueba: no se publica nada. El zip quedó en {zip_path}")
+        print(f"--prueba: no se publica nada. El zip quedó en {zip_path} para revisarlo (borralo después).")
         return
 
-    run(["git", "push", "origin", RAMA])
-    run(["git", "tag", tag])
-    run(["git", "push", "origin", tag])
-    notas = (f"Consultor Académico {v}.\n\n"
-             f"El zip es la carpeta app\\ de la versión portable (lo instala el botón «Actualizar» o Actualizar.bat). "
-             f"Los scripts de app\\scripts salen de ACADEMICO-PROYECTO, commit {commit_scripts}.")
-    run(["gh", "release", "create", tag, zip_path, "--repo", actualizar.REPO, "--verify-tag",
-         "--title", f"Consultor Académico {v}", "--notes", notas])
+    try:
+        run(["git", "push", "origin", RAMA])
+        run(["git", "tag", tag])
+        run(["git", "push", "origin", tag])
+        notas = (f"Consultor Académico {v}.\n\n"
+                 f"El zip es la carpeta app\\ de la versión portable (lo instala el botón «Actualizar» o "
+                 f"Actualizar.bat). Los scripts de app\\scripts salen de ACADEMICO-PROYECTO, commit {commit_scripts}.")
+        run(["gh", "release", "create", tag, zip_path, "--repo", actualizar.REPO, "--verify-tag",
+             "--title", f"Consultor Académico {v}", "--notes", notas])
+    finally:
+        shutil.rmtree(carpeta, ignore_errors=True)
 
     # Lo publicado, visto como lo ve el actualizador.
     publicada, url = actualizar.buscar_release()
