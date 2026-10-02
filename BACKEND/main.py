@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -42,6 +42,16 @@ sys.path.insert(0, str(ACADEMICO_SCRIPTS_DIR))
 print("Cargando biblioteca académica (embeddings + índice FAISS)...", flush=True)
 import ingesta  # noqa: E402
 import responder_api as api  # noqa: E402
+
+# Contrato con ACADEMICO-SCRIPTS (otro repo): este backend manda la ruta del
+# PDF, no sus bytes, y registra rutas nuevas con actualizar_ruta(). Con un
+# ingesta.py anterior a ese cambio fallaría recién al agregar material, con
+# un error 500 sin explicación.
+if not hasattr(ingesta, "actualizar_ruta"):
+    raise SystemExit(
+        "ACADEMICO-SCRIPTS/ingesta.py es anterior al cambio que dejó de copiar PDFs "
+        "(falta actualizar_ruta). Actualizá ACADEMICO-PROYECTO junto con CONSULTOR-ACADEMICO-GUI."
+    )
 
 print("Backend listo.", flush=True)
 
@@ -91,6 +101,17 @@ class DocumentoResponse(BaseModel):
     anio: str
     fuente_editorial: str
     n_chunks: int
+    # Ruta del PDF original (el consultor no guarda copia). None en los
+    # documentos anteriores a ese cambio que todavía no se ubicaron; para
+    # ésos, copia_interna es la copia vieja de ACADEMICO-PDF si existe.
+    ruta_archivo: Optional[str] = None
+    origen_url: Optional[str] = None
+    hash_sha256: str = ""
+    copia_interna: Optional[str] = None
+
+
+class RutaRequest(BaseModel):
+    ruta_archivo: str
 
 
 class IngestaResponse(BaseModel):
@@ -101,6 +122,7 @@ class IngestaResponse(BaseModel):
     n_paginas: int
     n_chunks: int
     advertencias: List[str]
+    ruta_archivo: str
 
 
 @app.get("/health")
@@ -126,23 +148,28 @@ def ingestar(
     autor: str = Form(""),
     anio: str = Form(""),
     fuente_editorial: str = Form(""),
+    ruta_archivo: Optional[str] = Form(None),
     origen_url: Optional[str] = Form(None),
-    archivo: Optional[UploadFile] = File(None),
+    carpeta_descargas: Optional[str] = Form(None),
 ):
+    """El PDF ya no viaja en la request: la GUI manda la ruta del archivo
+    local (que se indexa desde ahí, sin copiarlo) o la URL más la carpeta
+    donde guardar la descarga."""
     if not titulo or not titulo.strip():
         raise HTTPException(400, "El título es obligatorio.")
 
+    ruta = ruta_archivo.strip() if ruta_archivo and ruta_archivo.strip() else None
     url = origen_url.strip() if origen_url and origen_url.strip() else None
-    if bool(archivo) == bool(url):
+    if bool(ruta) == bool(url):
         raise HTTPException(400, "Se requiere exactamente uno de archivo o URL de descarga directa.")
-
-    archivo_bytes = archivo.file.read() if archivo else None
+    carpeta = carpeta_descargas.strip() if carpeta_descargas and carpeta_descargas.strip() else None
 
     try:
         return ingesta.ingestar_documento(
             titulo=titulo.strip(),
-            archivo_bytes=archivo_bytes,
+            ruta_archivo=ruta,
             origen_url=url,
+            carpeta_descargas=carpeta,
             autor=autor.strip(),
             anio=anio.strip(),
             fuente_editorial=fuente_editorial.strip(),
@@ -151,5 +178,25 @@ def ingestar(
         raise HTTPException(
             409, {"mensaje": str(exc), "documento_id_existente": exc.documento_id_existente}
         ) from exc
-    except (ingesta.PdfInvalidoError, ingesta.TextoNoExtraibleError, ingesta.DescargaFallidaError) as exc:
+    except (ingesta.PdfInvalidoError, ingesta.TextoNoExtraibleError, ingesta.DescargaFallidaError,
+            ingesta.ArchivoNoEncontradoError, ingesta.CarpetaDescargasError) as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/documentos/{documento_id}/ruta", response_model=DocumentoResponse)
+def actualizar_ruta(documento_id: str, req: RutaRequest):
+    """Registra dónde está ahora el PDF de un documento (movido, renombrado,
+    o anterior al cambio que dejó de copiar PDFs). Sólo acepta el mismo
+    archivo (mismo SHA-256) que el indexado."""
+    try:
+        ingesta.actualizar_ruta(documento_id, req.ruta_archivo)
+    except ingesta.DocumentoInexistenteError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ingesta.DocumentoDuplicadoError as exc:
+        raise HTTPException(
+            409, {"mensaje": f"Ese archivo es otro documento de la biblioteca: {exc.documento_id_existente}.",
+                  "documento_id_existente": exc.documento_id_existente}
+        ) from exc
+    except (ingesta.ArchivoNoEncontradoError, ingesta.HashDistintoError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return next(d for d in api.listar_documentos() if d["documento_id"] == documento_id)

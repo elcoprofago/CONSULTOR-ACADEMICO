@@ -8,9 +8,12 @@ namespace ConsultorAcademicoGui
     {
         public AppSettings? Result { get; private set; }
 
+        private readonly AppSettings _actual;
+
         public SettingsWindow(AppSettings actual)
         {
             InitializeComponent();
+            _actual = actual;
 
             switch (actual.Tema)
             {
@@ -37,6 +40,7 @@ namespace ConsultorAcademicoGui
             SliderMmr.Value = actual.MmrLambdaDefault;
             SliderFuente.Value = actual.TamanoFuenteResultados;
             ChkAutoPurgar.IsChecked = actual.AutoPurgarAlCerrar;
+            TxtCarpetaDescargas.Text = actual.CarpetaDescargas ?? "";
 
             ActualizarEstadoTextura();
         }
@@ -71,6 +75,16 @@ namespace ConsultorAcademicoGui
 
             if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 TxtCarpetaExportacion.Text = dlg.SelectedPath;
+        }
+
+        private void BtnExaminarDescargas_Click(object sender, RoutedEventArgs e)
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog();
+            if (!string.IsNullOrEmpty(TxtCarpetaDescargas.Text) && Directory.Exists(TxtCarpetaDescargas.Text))
+                dlg.SelectedPath = TxtCarpetaDescargas.Text;
+
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                TxtCarpetaDescargas.Text = dlg.SelectedPath;
         }
 
         private void SliderMmr_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -116,6 +130,10 @@ namespace ConsultorAcademicoGui
                 KResultadosDefault = kDefault,
                 MmrLambdaDefault = SliderMmr.Value,
                 AutoPurgarAlCerrar = ChkAutoPurgar.IsChecked == true,
+                CarpetaDescargas = string.IsNullOrWhiteSpace(TxtCarpetaDescargas.Text) ? null : TxtCarpetaDescargas.Text.Trim(),
+                // No se edita en esta ventana: sin copiarlo, guardar la
+                // configuración borraba el historial de búsquedas.
+                HistorialBusquedas = _actual.HistorialBusquedas,
             };
             DialogResult = true;
         }

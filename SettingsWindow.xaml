@@ -60,6 +60,27 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===================== Biblioteca ===================== -->
+            <TextBlock Text="Biblioteca" Style="{StaticResource SectionHeader}"/>
+            <Border Background="{StaticResource PanelBg}"
+                    BorderThickness="0" CornerRadius="4" Padding="12" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Carpeta de descargas" Foreground="{StaticResource TextDim}" FontSize="11"/>
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtCarpetaDescargas" Grid.Column="0" IsReadOnly="True"
+                                 VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                        <Button x:Name="BtnExaminarDescargas" Grid.Column="1" Content="Examinar..."
+                                Click="BtnExaminarDescargas_Click"/>
+                    </Grid>
+                    <TextBlock Text="Donde se guarda el PDF del material agregado por URL. El consultor no copia los PDFs: indexa cada uno desde donde está y recuerda su ruta."
+                               Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
             <!-- ===================== Búsqueda ===================== -->
             <TextBlock Text="Búsqueda" Style="{StaticResource SectionHeader}"/>
             <Border Background="{StaticResource PanelBg}"

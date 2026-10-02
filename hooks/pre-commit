@@ -1,0 +1,13 @@
+#!/bin/sh
+# Avisos de integridad (no bloquean). Activar con: git config core.hooksPath hooks
+#
+# BACKEND/main.py llama a ingesta.py y responder_api.py de ACADEMICO-PROYECTO
+# (otro repo): firmas de funciones, campos devueltos y excepciones. git no
+# puede verificar ese contrato desde acá; el control efectivo es el chequeo
+# de arranque en main.py (se niega a iniciar con un ingesta.py viejo).
+if git diff --cached --name-only | grep -qx 'BACKEND/main.py'; then
+    echo "AVISO: el commit toca BACKEND/main.py, que usa ACADEMICO-PROYECTO/ACADEMICO-SCRIPTS" >&2
+    echo "       (ingesta.py, responder_api.py). Si cambió el contrato, actualizá ese repo" >&2
+    echo "       y, si hace falta, el chequeo de arranque de main.py." >&2
+fi
+exit 0

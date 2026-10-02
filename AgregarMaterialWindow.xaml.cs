@@ -1,7 +1,6 @@
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Win32;
@@ -12,16 +11,22 @@ namespace ConsultorAcademicoGui
     {
         private readonly Action<string, string, bool, bool> _log;
         private readonly Func<Task> _refrescarDocumentos;
+        private readonly string? _carpetaDescargas;
         private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(10) };
         private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
-        public AgregarMaterialWindow(Action<string, string, bool, bool> log, Func<Task> refrescarDocumentos)
+        public AgregarMaterialWindow(Action<string, string, bool, bool> log, Func<Task> refrescarDocumentos,
+                                     string? carpetaDescargas)
         {
             InitializeComponent();
             _log = log;
             _refrescarDocumentos = refrescarDocumentos;
+            _carpetaDescargas = string.IsNullOrWhiteSpace(carpetaDescargas) ? null : carpetaDescargas;
             ActualizarModoOrigen();
         }
+
+        private bool CarpetaDescargasValida =>
+            _carpetaDescargas != null && Directory.Exists(_carpetaDescargas);
 
         private void RbOrigen_Changed(object sender, RoutedEventArgs e) => ActualizarModoOrigen();
 
@@ -31,6 +36,15 @@ namespace ConsultorAcademicoGui
             bool esArchivo = RbOrigenArchivo.IsChecked == true;
             PanelArchivo.Visibility = esArchivo ? Visibility.Visible : Visibility.Collapsed;
             TxtUrl.Visibility = esArchivo ? Visibility.Collapsed : Visibility.Visible;
+            // El consultor no copia PDFs: el archivo local se indexa desde
+            // donde está, y el descargado queda en la carpeta de descargas.
+            LblNotaOrigen.Text = esArchivo
+                ? "El PDF se indexa desde su ubicación actual, sin copiarlo. Si después lo movés o lo renombrás, el botón \"PDF\" de la lista de documentos permite ubicarlo de nuevo."
+                : CarpetaDescargasValida
+                    ? $"El PDF descargado se guarda en: {_carpetaDescargas}"
+                    : _carpetaDescargas == null
+                        ? "Para agregar por URL, elegí antes una carpeta de descargas en Configuración (engranaje → Biblioteca)."
+                        : $"La carpeta de descargas configurada no existe: {_carpetaDescargas}. Elegí otra en Configuración.";
             ActualizarBotonAgregar();
         }
 
@@ -52,7 +66,7 @@ namespace ConsultorAcademicoGui
             bool tieneTitulo = !string.IsNullOrWhiteSpace(TxtTitulo.Text);
             bool tieneOrigen = RbOrigenArchivo.IsChecked == true
                 ? !string.IsNullOrWhiteSpace(TxtArchivo.Text)
-                : !string.IsNullOrWhiteSpace(TxtUrl.Text);
+                : !string.IsNullOrWhiteSpace(TxtUrl.Text) && CarpetaDescargasValida;
             BtnAgregar.IsEnabled = tieneTitulo && tieneOrigen;
         }
 
@@ -81,14 +95,12 @@ namespace ConsultorAcademicoGui
 
                 if (esArchivo)
                 {
-                    byte[] archivoBytes = await File.ReadAllBytesAsync(archivoPath);
-                    var fileContent = new ByteArrayContent(archivoBytes);
-                    fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
-                    content.Add(fileContent, "archivo", Path.GetFileName(archivoPath));
+                    content.Add(new StringContent(archivoPath), "ruta_archivo");
                 }
                 else
                 {
                     content.Add(new StringContent(url), "origen_url");
+                    content.Add(new StringContent(_carpetaDescargas ?? ""), "carpeta_descargas");
                 }
 
                 var resp = await _http.PostAsync($"{MainWindow.BackendBaseUrl}/ingestar", content);
@@ -101,7 +113,7 @@ namespace ConsultorAcademicoGui
                         ? $" Advertencias: {string.Join("; ", data.advertencias)}"
                         : "";
                     _log($"Material agregado: {data?.documento_id} — \"{data?.titulo}\" " +
-                         $"({data?.n_paginas} páginas, {data?.n_chunks} fragmentos).{advertencias}", "OK", true, false);
+                         $"({data?.n_paginas} páginas, {data?.n_chunks} fragmentos). PDF: {data?.ruta_archivo}{advertencias}", "OK", true, false);
 
                     await _refrescarDocumentos();
 

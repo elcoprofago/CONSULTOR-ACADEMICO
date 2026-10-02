@@ -43,6 +43,19 @@ namespace ConsultorAcademicoGui
         public string anio { get; set; } = "";
         public string fuente_editorial { get; set; } = "";
         public int n_chunks { get; set; }
+        // Ruta del PDF original: el consultor no guarda copia. Null en los
+        // documentos anteriores a ese cambio que todavía no se ubicaron; para
+        // ésos, copia_interna es la copia vieja de ACADEMICO-PDF si existe.
+        public string? ruta_archivo { get; set; }
+        public string? origen_url { get; set; }
+        public string hash_sha256 { get; set; } = "";
+        public string? copia_interna { get; set; }
+    }
+
+    // Cuerpo de POST /documentos/{id}/ruta.
+    public class RutaRequest
+    {
+        public string ruta_archivo { get; set; } = "";
     }
 
     // Respuesta de POST /ingestar.
@@ -55,6 +68,7 @@ namespace ConsultorAcademicoGui
         public int n_paginas { get; set; }
         public int n_chunks { get; set; }
         public List<string> advertencias { get; set; } = new();
+        public string ruta_archivo { get; set; } = "";
     }
 
     // Detalle de un 409 de POST /ingestar (documento duplicado).
@@ -92,6 +106,10 @@ namespace ConsultorAcademicoGui
         public string Autor { get; set; } = "";
         public string Anio { get; set; } = "";
         public string FuenteEditorial { get; set; } = "";
+        // Para el botón "PDF" de cada fila (ver FiltroAbrirPdf_Click).
+        public string? RutaArchivo { get; set; }
+        public string? CopiaInterna { get; set; }
+        public string Hash { get; set; } = "";
     }
 
     // --- Sesión (Guardar/Cargar sesión, Requisitos 21-23) -----------------
@@ -141,6 +159,11 @@ namespace ConsultorAcademicoGui
         public double MmrLambdaDefault { get; set; } = 0.6;
 
         public bool AutoPurgarAlCerrar { get; set; } = false;
+
+        // Donde se guarda un PDF agregado por URL (ése pasa a ser su único
+        // ejemplar: el consultor no copia PDFs). Sin carpeta elegida, agregar
+        // por URL se rechaza.
+        public string? CarpetaDescargas { get; set; }
 
         // Últimas búsquedas (más reciente primero, tope 10; ver
         // RegistrarBusquedaEnHistorial en MainWindow.xaml.cs).

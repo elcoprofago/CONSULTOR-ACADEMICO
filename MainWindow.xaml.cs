@@ -72,6 +72,7 @@ namespace ConsultorAcademicoGui
         private GridLength? _colLogGuardado;
 
         private AppSettings _settings = new();
+        private bool _avisoPdfsSinUbicarMostrado;
         private BitmapImage? _iconoConfigNormal;
         private BitmapImage? _iconoConfigHover;
 
@@ -357,10 +358,30 @@ namespace ConsultorAcademicoGui
                         Autor = d.autor,
                         Anio = d.anio,
                         FuenteEditorial = d.fuente_editorial,
+                        RutaArchivo = d.ruta_archivo,
+                        CopiaInterna = d.copia_interna,
+                        Hash = d.hash_sha256,
                     })
                     .ToList();
+                // Conserva las marcas de filtro al recargar (tras agregar
+                // material o ubicar un PDF).
+                if (ListFiltro.ItemsSource is List<CheckableItem> anteriores)
+                {
+                    var marcados = anteriores.Where(i => i.IsChecked).Select(i => i.Value).ToHashSet();
+                    foreach (var i in items) i.IsChecked = marcados.Contains(i.Value);
+                }
                 ListFiltro.ItemsSource = items;
                 ActualizarResumenFiltro();
+
+                if (!_avisoPdfsSinUbicarMostrado)
+                {
+                    _avisoPdfsSinUbicarMostrado = true;
+                    var sinUbicar = items.Where(Ubicador.FaltaArchivo).ToList();
+                    if (sinUbicar.Count > 0)
+                        Log($"{sinUbicar.Count} documento(s) sin PDF original en la ruta registrada " +
+                            $"({string.Join(", ", sinUbicar.Select(i => i.Value))}). La búsqueda funciona igual; " +
+                            "para abrirlos, usá el botón \"PDF\" de la lista de documentos, que permite ubicarlos.", "WARN");
+                }
             }
             catch (Exception ex)
             {
@@ -414,6 +435,20 @@ namespace ConsultorAcademicoGui
             string cita = ConstruirCitaApa(item.Autor, item.Anio, item.Titulo, item.FuenteEditorial);
             Clipboard.SetText(cita);
             Log($"Cita copiada al portapapeles: {cita}", "OK");
+        }
+
+        // Botón "PDF" por fila: abre el original desde su ruta registrada (el
+        // consultor no guarda copia); si no está, ofrece ubicarlo.
+        private async void FiltroAbrirPdf_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is not CheckableItem item) return;
+            if (ListFiltro.ItemsSource is not List<CheckableItem> todos) return;
+            BtnFiltroToggle.IsChecked = false;
+            if (UbicarPdfWindow.AbrirDocumento(this, item, todos))
+            {
+                Log($"Ruta del PDF registrada: {item.Value} -> {item.RutaArchivo}", "OK");
+                await CargarFiltroAsync();
+            }
         }
 
         private void ActualizarResumenFiltro()
@@ -568,7 +603,7 @@ namespace ConsultorAcademicoGui
 
         private void BtnAgregarMaterial_Click(object sender, RoutedEventArgs e)
         {
-            var wnd = new AgregarMaterialWindow(Log, CargarFiltroAsync) { Owner = this };
+            var wnd = new AgregarMaterialWindow(Log, CargarFiltroAsync, _settings.CarpetaDescargas) { Owner = this };
             wnd.ShowDialog();
         }
 

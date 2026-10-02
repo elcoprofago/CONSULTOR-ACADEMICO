@@ -33,6 +33,9 @@
                     <TextBox x:Name="TxtUrl" Visibility="Collapsed" VerticalContentAlignment="Center"
                              ToolTip="URL que responda directamente el PDF (no una página HTML que lo enlace)"
                              TextChanged="Campo_Changed"/>
+
+                    <TextBlock x:Name="LblNotaOrigen" Foreground="{StaticResource TextDim}" FontSize="11"
+                               TextWrapping="Wrap" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 
