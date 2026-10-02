@@ -153,7 +153,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
-                <ColumnDefinition Width="6"/>
+                <ColumnDefinition x:Name="ColSplitterLog" Width="6"/>
                 <ColumnDefinition x:Name="ColLog" Width="1*"/>
             </Grid.ColumnDefinitions>
 
@@ -180,18 +180,22 @@
                 </DockPanel>
             </Border>
 
-            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch"
+            <GridSplitter x:Name="SplitterLog" Grid.Column="1" Width="6" HorizontalAlignment="Stretch"
                           Background="{StaticResource PanelBorder}"/>
 
-            <Border Grid.Column="2" Background="#FF1E1E1E"
+            <Border x:Name="BorderLog" Grid.Column="2" Background="#FF1E1E1E"
                     BorderThickness="0" CornerRadius="4">
-                <DockPanel Margin="12">
+                <DockPanel x:Name="PanelLog" Margin="12">
                     <DockPanel DockPanel.Dock="Top" LastChildFill="False">
                         <TextBlock DockPanel.Dock="Left" Text="Log" Style="{StaticResource SectionHeader}"/>
                         <Button x:Name="BtnToggleLog" DockPanel.Dock="Left" Content="▼" Margin="8,0,0,0"
                                 Style="{StaticResource SectionToggleButtonStyle}"
                                 Click="BtnToggleLog_Click"
                                 ToolTip="Ocultar/mostrar panel de Log"/>
+                        <Button x:Name="BtnDesacoplarLog" DockPanel.Dock="Right" Content="Desacoplar"
+                                FontSize="11" Padding="6,1" VerticalAlignment="Center"
+                                Click="BtnDesacoplarLog_Click"
+                                ToolTip="Pasar el Log a una ventana aparte (por ejemplo, en otro monitor). Al cerrarla vuelve aquí."/>
                     </DockPanel>
                     <RichTextBox x:Name="TxtLog" DockPanel.Dock="Top"
                                  Background="#FF1E1E1E" Foreground="White"
@@ -230,11 +234,16 @@
                     <Button x:Name="BtnCargarSesion" Content="Cargar sesión" Click="BtnCargarSesion_Click"/>
                 </StackPanel>
 
-                <Button x:Name="BtnConfiguracion" Grid.Column="1" Width="40" Height="40" Padding="6"
-                        HorizontalAlignment="Right" Margin="10,0,0,0"
-                        Click="BtnConfiguracion_Click" ToolTip="Configuración">
-                    <Image x:Name="ImgConfiguracion" Stretch="Uniform"/>
-                </Button>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnActualizar" Content="Actualizar" Click="BtnActualizar_Click"
+                            VerticalAlignment="Center" Visibility="Collapsed"
+                            ToolTip="Buscar en GitHub una versión nueva del programa e instalarla (solo cambia app\; tus datos y modelos no se tocan)"/>
+                    <Button x:Name="BtnConfiguracion" Width="40" Height="40" Padding="6"
+                            Margin="10,0,0,0"
+                            Click="BtnConfiguracion_Click" ToolTip="Configuración">
+                        <Image x:Name="ImgConfiguracion" Stretch="Uniform"/>
+                    </Button>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

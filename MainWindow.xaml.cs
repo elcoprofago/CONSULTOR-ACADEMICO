@@ -24,12 +24,10 @@ namespace ConsultorAcademicoGui
     {
         private const int BackendPort = 8001;
         internal static readonly string BackendBaseUrl = $"http://127.0.0.1:{BackendPort}";
-        private const string VenvPython = @"F:\INFO\DERECHO\Jurisprudencia\C.S.J.N\CSJN-PROYECTO\CSJN-SCRIPTS\venv\Scripts\python.exe";
-        private const string BackendDir = @"F:\INFO\DERECHO\Jurisprudencia\C.S.J.N\CONSULTOR-ACADEMICO-GUI\BACKEND";
 
+        // Python, backend, llama-server y modelos: ver Entorno.cs (portable o
+        // desarrollo).
         private const int LlamaPort = 9001;
-        private const string LlamaServerExe = @"E:\llama-server\llama-server.exe";
-        private const string LlamaModelPath = @"E:\Models\unsloth\Qwen3.5-9B-GGUF\Qwen3.5-9B-Q4_K_M.gguf";
 
         private const int PageSize = 10;
 
@@ -70,6 +68,9 @@ namespace ConsultorAcademicoGui
         private DispatcherTimer? _perfTimer;
 
         private GridLength? _colLogGuardado;
+        private Window? _ventanaLog;
+        private GridLength _colLogAntesDeDesacoplar = new(1, GridUnitType.Star);
+        private bool _cerrandoApp;
 
         private AppSettings _settings = new();
         private bool _avisoPdfsSinUbicarMostrado;
@@ -89,12 +90,16 @@ namespace ConsultorAcademicoGui
             AplicarTema();
             TxtK.Text = (_settings.KResultadosDefault ?? 5).ToString();
             ActualizarHistorialBusquedas();
+            BtnActualizar.Visibility = Entorno.EsPortable ? Visibility.Visible : Visibility.Collapsed;
 
             Loaded += MainWindow_Loaded;
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            if (_settings.LogDesacoplado) DesacoplarLog();
+            Log($"Consultor Académico {VersionApp}" + (Entorno.EsPortable ? $" (portable: {Entorno.RaizPortable})" : " (desarrollo)"));
+            InformarResultadoActualizacion();
             bool backendListo = await IniciarBackendAsync();
             // Después del backend y no antes (mismo criterio que CONSULTOR-GUI:
             // el backend necesita su margen de commit y llama va al final).
@@ -105,11 +110,10 @@ namespace ConsultorAcademicoGui
 
         // ===================== Configuración (botón de engranaje) =====================
 
+        // Portable: data\config.json de esta copia. Desarrollo: Documentos.
         private static string GetConfigPath()
         {
-            string dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "CONSULTOR-ACADEMICO-GUI");
+            string dir = Entorno.DataDir;
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "config.json");
         }
@@ -214,7 +218,9 @@ namespace ConsultorAcademicoGui
 
             bool requiereReinicioBackend =
                 wnd.Result.UsarGpuBusqueda != _settings.UsarGpuBusqueda ||
-                wnd.Result.MmrLambdaDefault != _settings.MmrLambdaDefault;
+                wnd.Result.MmrLambdaDefault != _settings.MmrLambdaDefault ||
+                wnd.Result.CarpetaBiblioteca != _settings.CarpetaBiblioteca ||
+                wnd.Result.CarpetaModelos != _settings.CarpetaModelos;
 
             bool cambioCatalogo = wnd.Result.RutaCatalogoCitaPdf != _settings.RutaCatalogoCitaPdf;
             _settings = wnd.Result;
@@ -225,7 +231,7 @@ namespace ConsultorAcademicoGui
             Log("Configuración guardada.", "OK");
 
             if (requiereReinicioBackend)
-                Log("Los cambios de GPU/diversidad (MMR) se aplican recién en el próximo inicio del backend: cerrá y volvé a abrir CONSULTOR-ACADEMICO-GUI para que tomen efecto.", "WARN");
+                Log("Los cambios de GPU, diversidad (MMR), biblioteca o modelos se aplican recién en el próximo inicio del backend: cerrá y volvé a abrir el consultor para que tomen efecto.", "WARN");
         }
 
         // ===================== Ciclo de vida del backend =====================
@@ -265,11 +271,17 @@ namespace ConsultorAcademicoGui
             Log("Iniciando servicio backend (FastAPI)...", "INFO");
             try
             {
+                if (!File.Exists(Entorno.Python))
+                {
+                    Log($"No se encontró Python en {Entorno.Python}.", "ERROR");
+                    return false;
+                }
+
                 var psi = new ProcessStartInfo
                 {
-                    FileName = VenvPython,
+                    FileName = Entorno.Python,
                     Arguments = $"-m uvicorn main:app --host 127.0.0.1 --port {BackendPort}",
-                    WorkingDirectory = BackendDir,
+                    WorkingDirectory = Entorno.BackendDir,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -294,6 +306,38 @@ namespace ConsultorAcademicoGui
                 psi.EnvironmentVariables["ACADEMICO_GPU"] = _settings.UsarGpuBusqueda ? "1" : "0";
                 psi.EnvironmentVariables["ACADEMICO_MMR_LAMBDA"] =
                     _settings.MmrLambdaDefault.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                // Rutas para BACKEND/main.py y config.py (ver Entorno.cs). Sin
+                // la variable, cada uno usa la ruta de siempre de esta PC.
+                void Fijar(string nombre, string? valor)
+                {
+                    if (valor != null) psi.EnvironmentVariables[nombre] = valor;
+                    else psi.EnvironmentVariables.Remove(nombre);
+                }
+                Fijar("ACADEMICO_SCRIPTS_DIR", Entorno.ScriptsDir);
+                Fijar("ACADEMICO_DATA_DIR", Entorno.IndiceDir);
+                Fijar("ACADEMICO_PDFTOTEXT", Entorno.Pdftotext);
+                string? embeddings = Entorno.BuscarModeloEmbeddings(_settings.CarpetaModelos);
+                Fijar("ACADEMICO_EMBED_MODEL", embeddings);
+                string? biblioteca = Entorno.CarpetaBiblioteca(_settings.CarpetaBiblioteca);
+                Fijar("ACADEMICO_BIBLIOTECA_DIR", biblioteca);
+                if (Entorno.EsPortable)
+                {
+                    // El Python de runtime\ no debe tomar paquetes ni
+                    // configuración de un Python instalado en el equipo.
+                    psi.EnvironmentVariables["PYTHONNOUSERSITE"] = "1";
+                    psi.EnvironmentVariables.Remove("PYTHONPATH");
+                    psi.EnvironmentVariables.Remove("PYTHONHOME");
+                }
+
+                Log(Entorno.EsPortable ? $"Modo portable: {Entorno.RaizPortable}" : "Modo desarrollo (rutas de esta PC).", "INFO");
+                Log(embeddings != null
+                    ? $"Modelo de embeddings: {embeddings}"
+                    : $"No se encontró la carpeta {Entorno.ModeloEmbeddings} en {string.Join(", ", Entorno.CarpetasModelos(_settings.CarpetaModelos))}; se usa la caché de HuggingFace de este usuario.",
+                    embeddings != null ? "INFO" : "WARN");
+                Log(biblioteca != null
+                    ? $"Biblioteca de PDF: {biblioteca} (las rutas de adentro se guardan relativas)."
+                    : "Sin carpeta de biblioteca: las rutas de los PDF se guardan completas.", "INFO");
 
                 _backendProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
                 _backendProcess.OutputDataReceived += (s, ev) => { if (ev.Data != null) Log(ev.Data, "INFO"); };
@@ -846,11 +890,20 @@ namespace ConsultorAcademicoGui
                 return;
             }
 
-            if (!File.Exists(LlamaServerExe) || !File.Exists(LlamaModelPath))
+            string llamaServer = Entorno.LlamaServer;
+            if (!File.Exists(llamaServer))
             {
-                Log("No se encontró llama-server.exe o el archivo del modelo. Revisá las rutas configuradas.", "ERROR");
+                Log($"No se encontró {llamaServer}.", "ERROR");
                 return;
             }
+            string? modelo = Entorno.BuscarModeloLlm(_settings.CarpetaModelos);
+            if (modelo == null)
+            {
+                Log($"No se encontró {Entorno.ModeloLlm} en {string.Join(", ", Entorno.CarpetasModelos(_settings.CarpetaModelos))}. " +
+                    "Copialo a una de esas carpetas o elegí la carpeta de modelos en Configuración.", "ERROR");
+                return;
+            }
+            Log($"Modelo: {modelo}", "INFO");
 
             Log($"Iniciando llama-server (puerto {LlamaPort})...", "INFO");
 
@@ -858,14 +911,14 @@ namespace ConsultorAcademicoGui
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = LlamaServerExe,
-                    WorkingDirectory = Path.GetDirectoryName(LlamaServerExe),
+                    FileName = llamaServer,
+                    WorkingDirectory = Path.GetDirectoryName(llamaServer),
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
                 };
-                psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(LlamaModelPath);
+                psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(modelo);
                 psi.ArgumentList.Add("--host"); psi.ArgumentList.Add("127.0.0.1");
                 psi.ArgumentList.Add("--port"); psi.ArgumentList.Add(LlamaPort.ToString());
                 psi.ArgumentList.Add("--ctx-size"); psi.ArgumentList.Add("8192");
@@ -956,14 +1009,14 @@ namespace ConsultorAcademicoGui
                     // también matchea el backend de CONSULTOR-GUI, que
                     // comparte el mismo venv y el mismo nombre de módulo pero
                     // corre en el puerto 8000).
-                    bool esBackendNuestro = exe.Equals(VenvPython, StringComparison.OrdinalIgnoreCase)
+                    bool esBackendNuestro = exe.Equals(Entorno.Python, StringComparison.OrdinalIgnoreCase)
                         && cmd.Contains("uvicorn", StringComparison.OrdinalIgnoreCase)
                         && cmd.Contains("main:app", StringComparison.OrdinalIgnoreCase)
                         && cmd.Contains(puertoBackendTag, StringComparison.OrdinalIgnoreCase);
                     // Mismo razonamiento para llama-server: exe idéntico al de
                     // CONSULTOR-GUI (mismo binario), distinguido por puerto
                     // (9001 acá vs. 9000 en CONSULTOR-GUI).
-                    bool esLlamaNuestro = exe.Equals(LlamaServerExe, StringComparison.OrdinalIgnoreCase)
+                    bool esLlamaNuestro = exe.Equals(Entorno.LlamaServer, StringComparison.OrdinalIgnoreCase)
                         && cmd.Contains(puertoLlamaTag, StringComparison.OrdinalIgnoreCase);
 
                     if (esBackendNuestro || esLlamaNuestro)
@@ -1165,13 +1218,12 @@ namespace ConsultorAcademicoGui
 
         // ===================== Guardar / Cargar sesión (JSON) =====================
 
-        // Carpeta fija y predecible en Documentos: Guardar y Cargar siempre
-        // abren en el mismo lugar (mismo criterio que CONSULTOR-GUI).
+        // Carpeta fija y predecible (Documentos, o data\ en modo portable):
+        // Guardar y Cargar siempre abren en el mismo lugar (mismo criterio que
+        // CONSULTOR-GUI).
         private static string GetSesionesDir()
         {
-            string dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "CONSULTOR-ACADEMICO-GUI", "Sesiones");
+            string dir = Path.Combine(Entorno.DataDir, "Sesiones");
             Directory.CreateDirectory(dir);
             return dir;
         }
@@ -1471,6 +1523,218 @@ namespace ConsultorAcademicoGui
             }
         }
 
+        // ===================== Actualizar (solo portable) =====================
+
+        // La release de GitHub trae app\ en un zip; lo instala app\actualizar.py
+        // (ver portable\actualizar.py). Acá solo se consulta si hay una versión
+        // más nueva y, si el usuario acepta, se lanza una copia del
+        // actualizador fuera de app\ y se cierra la ventana: el reemplazo
+        // necesita la GUI, el backend y llama-server cerrados.
+        private const string ApiUltimaRelease = "https://api.github.com/repos/elcoprofago/CONSULTOR-ACADEMICO/releases/latest";
+
+        private static string VersionApp =>
+            System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+
+        private void InformarResultadoActualizacion()
+        {
+            if (!Entorno.EsPortable) return;
+            string p = Path.Combine(Entorno.DataDir, "actualizacion.txt");
+            try
+            {
+                if (!File.Exists(p)) return;
+                string texto = File.ReadAllText(p, Encoding.UTF8).Trim();
+                File.Delete(p);
+                Log(texto, texto.StartsWith("OK") ? "OK" : "ERROR", protect: true);
+            }
+            catch (Exception ex)
+            {
+                Log($"No se pudo leer el resultado de la última actualización: {ex.Message}", "WARN");
+            }
+        }
+
+        private async void BtnActualizar_Click(object sender, RoutedEventArgs e)
+        {
+            BtnActualizar.IsEnabled = false;
+            try
+            {
+                string actual = VersionApp;
+                Log("Buscando una versión nueva en GitHub...");
+                using var req = new HttpRequestMessage(HttpMethod.Get, ApiUltimaRelease);
+                req.Headers.UserAgent.ParseAdd("CONSULTOR-ACADEMICO-actualizador");
+                req.Headers.Accept.ParseAdd("application/vnd.github+json");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                using var resp = await _http.SendAsync(req, cts.Token);
+                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    Log("Todavía no hay versiones publicadas en GitHub.", "WARN");
+                    return;
+                }
+                resp.EnsureSuccessStatusCode();
+                using var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                string ultima = (json.RootElement.GetProperty("tag_name").GetString() ?? "").TrimStart('v', 'V');
+                if (!Version.TryParse(ultima, out var vUltima) || !Version.TryParse(actual, out var vActual))
+                {
+                    Log($"No se pudo comparar la versión publicada ({ultima}) con la instalada ({actual}).", "ERROR");
+                    return;
+                }
+                if (vUltima <= vActual)
+                {
+                    Log($"Ya está la última versión ({actual}).", "OK");
+                    MessageBox.Show(this, $"Ya tenés la última versión ({actual}).", "Actualizar",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                if (MessageBox.Show(this,
+                        $"Hay una versión nueva: {ultima} (tenés la {actual}).\n\n" +
+                        "Se cierra el consultor, se descarga e instala la nueva versión (solo cambia app\\; " +
+                        "tus datos, el índice y los modelos no se tocan) y se vuelve a abrir.\n\n¿Actualizar ahora?",
+                        "Actualizar", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                    return;
+
+                // Copia fuera de app\: app\ se va a reemplazar entera.
+                string tmp = Path.Combine(Path.GetTempPath(), "consultor_update_" + Guid.NewGuid().ToString("N")[..8]);
+                Directory.CreateDirectory(tmp);
+                string copia = Path.Combine(tmp, "actualizar.py");
+                File.Copy(Path.Combine(Entorno.AppDir, "actualizar.py"), copia);
+                var psi = new ProcessStartInfo(Entorno.Python)
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = false,
+                    WorkingDirectory = Entorno.RaizPortable!,
+                };
+                foreach (string arg in new[] { "-I", copia, "--esperar-cierre", "--raiz", Entorno.RaizPortable! })
+                    psi.ArgumentList.Add(arg);
+                Process.Start(psi);
+                Log($"Actualizando a {ultima}: el consultor se cierra y se vuelve a abrir solo.", "OK");
+                Close();
+            }
+            catch (Exception ex)
+            {
+                Log($"No se pudo buscar o lanzar la actualización: {ex.Message}", "ERROR");
+            }
+            finally
+            {
+                BtnActualizar.IsEnabled = true;
+            }
+        }
+
+        // ===================== Log desacoplado (otra ventana / otro monitor) =====================
+
+        // El mismo TxtLog se mueve de PanelLog a una ventana aparte y vuelve al
+        // cerrarla: Log() sigue escribiendo en él y no se pierde lo ya escrito.
+
+        private void BtnDesacoplarLog_Click(object sender, RoutedEventArgs e) => DesacoplarLog();
+
+        private void DesacoplarLog()
+        {
+            if (_ventanaLog != null) { _ventanaLog.Activate(); return; }
+
+            if (TxtLog.Visibility != Visibility.Visible)
+                ToggleSectorColumna(ColLog, TxtLog, BtnToggleLog, ref _colLogGuardado);
+
+            _colLogAntesDeDesacoplar = ColLog.Width;
+            PanelLog.Children.Remove(TxtLog);
+            BorderLog.Visibility = Visibility.Collapsed;
+            SplitterLog.Visibility = Visibility.Collapsed;
+            ColSplitterLog.Width = new GridLength(0);
+            ColLog.Width = new GridLength(0);
+
+            var btnAcoplar = new Button
+            {
+                Content = "Acoplar",
+                FontSize = 11,
+                Padding = new Thickness(6, 1, 6, 1),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Devolver el Log a la ventana principal",
+            };
+            var barra = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 4) };
+            var titulo = new TextBlock { Text = "Log", Style = (Style)FindResource("SectionHeader") };
+            DockPanel.SetDock(titulo, Dock.Left);
+            DockPanel.SetDock(btnAcoplar, Dock.Right);
+            barra.Children.Add(titulo);
+            barra.Children.Add(btnAcoplar);
+
+            var panel = new DockPanel { Margin = new Thickness(12) };
+            DockPanel.SetDock(barra, Dock.Top);
+            panel.Children.Add(barra);
+            panel.Children.Add(TxtLog);
+
+            var ventana = new Window
+            {
+                Title = "Log — " + Title,
+                Content = panel,
+                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
+                Owner = this,
+                Icon = Icon,
+                Width = 560,
+                Height = 760,
+                MinWidth = 300,
+                MinHeight = 200,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            };
+            UbicarVentanaLog(ventana, _settings.VentanaLog);
+
+            btnAcoplar.Click += (_, _) => ventana.Close();
+            ventana.Closing += (_, _) =>
+            {
+                // Al cerrar la app las ventanas propias se cierran solas: ahí
+                // queda registrado que estaba desacoplado (Window_Closing).
+                if (_cerrandoApp) return;
+                _settings.VentanaLog = PosicionDe(ventana);
+                _settings.LogDesacoplado = false;
+                GuardarSettings();
+            };
+            ventana.Closed += (_, _) => AcoplarLog(panel);
+
+            _ventanaLog = ventana;
+            _settings.LogDesacoplado = true;
+            GuardarSettings();
+            ventana.Show();
+            if (_settings.VentanaLog?.Maximizada == true) ventana.WindowState = WindowState.Maximized;
+            TxtLog.ScrollToEnd();
+        }
+
+        private void AcoplarLog(DockPanel panelVentana)
+        {
+            panelVentana.Children.Remove(TxtLog);
+            PanelLog.Children.Add(TxtLog);
+            BorderLog.Visibility = Visibility.Visible;
+            SplitterLog.Visibility = Visibility.Visible;
+            ColSplitterLog.Width = new GridLength(6);
+            ColLog.Width = _colLogAntesDeDesacoplar;
+            _ventanaLog = null;
+            TxtLog.ScrollToEnd();
+        }
+
+        private static PosicionVentana PosicionDe(Window w)
+        {
+            Rect r = w.WindowState == WindowState.Normal ? new Rect(w.Left, w.Top, w.Width, w.Height) : w.RestoreBounds;
+            return new PosicionVentana
+            {
+                Left = r.Left, Top = r.Top, Width = r.Width, Height = r.Height,
+                Maximizada = w.WindowState == WindowState.Maximized,
+            };
+        }
+
+        // Sólo se usa la posición guardada si cae dentro del escritorio actual:
+        // el otro monitor puede no estar (o ser otra PC, desde el pendrive).
+        private static void UbicarVentanaLog(Window ventana, PosicionVentana? pos)
+        {
+            if (pos == null || pos.Width < 200 || pos.Height < 150) return;
+            var escritorio = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+                                      SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+            // La barra de título (unos 40 px de alto) tiene que quedar a la vista para poder moverla.
+            var barraTitulo = new Rect(pos.Left, pos.Top, pos.Width, 40);
+            barraTitulo.Intersect(escritorio);
+            if (barraTitulo.IsEmpty || barraTitulo.Width < 100 || barraTitulo.Height < 20) return;
+
+            ventana.WindowStartupLocation = WindowStartupLocation.Manual;
+            ventana.Left = pos.Left;
+            ventana.Top = pos.Top;
+            ventana.Width = pos.Width;
+            ventana.Height = pos.Height;
+        }
+
         // ===================== Log =====================
 
         private void Log(string msg, string level = "INFO", bool overwrite = false, bool protect = false)
@@ -1507,6 +1771,14 @@ namespace ConsultorAcademicoGui
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
+            _cerrandoApp = true;
+            if (_ventanaLog != null)
+            {
+                _settings.VentanaLog = PosicionDe(_ventanaLog);
+                _settings.LogDesacoplado = true;
+                GuardarSettings();
+            }
+
             _perfTimer?.Stop();
 
             try { if (_llamaProcess != null && !_llamaProcess.HasExited) _llamaProcess.Kill(true); } catch { }

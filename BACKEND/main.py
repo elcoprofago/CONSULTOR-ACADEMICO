@@ -35,8 +35,11 @@ from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# BACKEND -> CONSULTOR-ACADEMICO-GUI -> C.S.J.N: sin letra de unidad fija.
-ACADEMICO_SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "ACADEMICO-PROYECTO" / "ACADEMICO-SCRIPTS"
+# El consultor portable trae los scripts en app\scripts y lo indica con
+# ACADEMICO_SCRIPTS_DIR. Sin ella: BACKEND -> CONSULTOR-ACADEMICO-GUI ->
+# C.S.J.N, sin letra de unidad fija.
+ACADEMICO_SCRIPTS_DIR = (Path(os.environ["ACADEMICO_SCRIPTS_DIR"]) if os.environ.get("ACADEMICO_SCRIPTS_DIR")
+                         else Path(__file__).resolve().parents[2] / "ACADEMICO-PROYECTO" / "ACADEMICO-SCRIPTS")
 sys.path.insert(0, str(ACADEMICO_SCRIPTS_DIR))
 
 print("Cargando biblioteca académica (embeddings + índice FAISS)...", flush=True)

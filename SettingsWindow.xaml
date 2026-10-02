@@ -65,6 +65,21 @@
             <Border Background="{StaticResource PanelBg}"
                     BorderThickness="0" CornerRadius="4" Padding="12" Margin="0,0,0,16">
                 <StackPanel>
+                    <TextBlock Text="Carpeta de la biblioteca (PDF)" Foreground="{StaticResource TextDim}" FontSize="11"/>
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtCarpetaBiblioteca" Grid.Column="0" IsReadOnly="True"
+                                 VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Content="Examinar..." Click="BtnExaminarBiblioteca_Click"/>
+                        <Button Grid.Column="2" Content="Automática" Margin="8,0,0,0" Click="BtnBibliotecaAutomatica_Click"
+                                ToolTip="En la versión portable: la carpeta BASE de la unidad desde la que arranca"/>
+                    </Grid>
+                    <TextBlock x:Name="LblEstadoBiblioteca" Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,14"/>
+
                     <TextBlock Text="Carpeta de descargas" Foreground="{StaticResource TextDim}" FontSize="11"/>
                     <Grid Margin="0,2,0,0">
                         <Grid.ColumnDefinitions>
@@ -95,6 +110,28 @@
                     <TextBlock x:Name="LblEstadoCatalogo" Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     <TextBlock Text="De ahí salen las fichas adjuntas a cada documento. El consultor solo lo lee: nunca lo modifica. Con CitaPDF portable, elegí el biblioteca.json de su carpeta datos."
                                Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ===================== Modelos ===================== -->
+            <TextBlock Text="Modelos" Style="{StaticResource SectionHeader}"/>
+            <Border Background="{StaticResource PanelBg}"
+                    BorderThickness="0" CornerRadius="4" Padding="12" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Carpeta de modelos" Foreground="{StaticResource TextDim}" FontSize="11"/>
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtCarpetaModelos" Grid.Column="0" IsReadOnly="True"
+                                 VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Content="Examinar..." Click="BtnExaminarModelos_Click"/>
+                        <Button Grid.Column="2" Content="Automática" Margin="8,0,0,0" Click="BtnModelosAutomatica_Click"
+                                ToolTip="Sólo las carpetas de siempre (Models\ de la app y MODELS\ de la unidad)"/>
+                    </Grid>
+                    <TextBlock x:Name="LblEstadoModelos" Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 

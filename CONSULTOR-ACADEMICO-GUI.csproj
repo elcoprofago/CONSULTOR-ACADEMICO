@@ -12,6 +12,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>CONSULTOR-ACADEMICO-GUI</AssemblyName>
     <RootNamespace>ConsultorAcademicoGui</RootNamespace>
+    <!-- La versión de la carpeta portable: build_portable.py la lee de acá
+         para app\VERSION y VERSION.txt, publicar.py la usa como etiqueta
+         v<Version> de la release y el botón Actualizar la compara con la
+         última publicada. Subirla antes de cada publicación. -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -51,6 +56,12 @@
     <None Remove="Sesiones\**" />
     <Compile Remove="Exportaciones\**" />
     <None Remove="Exportaciones\**" />
+    <!-- portable\Lanzador.cs es otro programa (.NET Framework, lo compila
+         build_portable.py) y dist\ es la carpeta portable armada. -->
+    <Compile Remove="portable\**" />
+    <None Remove="portable\**" />
+    <Compile Remove="dist\**" />
+    <None Remove="dist\**" />
   </ItemGroup>
 
 </Project>

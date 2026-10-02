@@ -43,6 +43,10 @@ namespace ConsultorAcademicoGui
             TxtCarpetaDescargas.Text = actual.CarpetaDescargas ?? "";
             _rutaCatalogo = actual.RutaCatalogoCitaPdf;
             MostrarCatalogo();
+            _carpetaBiblioteca = actual.CarpetaBiblioteca;
+            MostrarBiblioteca();
+            _carpetaModelos = actual.CarpetaModelos;
+            MostrarModelos();
 
             ActualizarEstadoTextura();
         }
@@ -73,6 +77,69 @@ namespace ConsultorAcademicoGui
         {
             _rutaCatalogo = null;
             MostrarCatalogo();
+        }
+
+        // null = automática (ver Entorno.CarpetaBiblioteca / CarpetasModelos).
+        private string? _carpetaBiblioteca;
+        private string? _carpetaModelos;
+
+        private void MostrarBiblioteca()
+        {
+            string? efectiva = Entorno.CarpetaBiblioteca(_carpetaBiblioteca);
+            TxtCarpetaBiblioteca.Text = efectiva ?? "";
+            LblEstadoBiblioteca.Text =
+                (_carpetaBiblioteca == null ? "Automática. " : "") +
+                (efectiva == null
+                    ? "Ninguna: las rutas de los PDF se guardan completas."
+                    : Directory.Exists(efectiva)
+                        ? "Las rutas de los PDF de adentro se guardan relativas a ella: siguen valiendo si la unidad cambia de letra."
+                        : "La carpeta no existe.");
+        }
+
+        private void MostrarModelos()
+        {
+            TxtCarpetaModelos.Text = _carpetaModelos ?? "";
+            string? llm = Entorno.BuscarModeloLlm(_carpetaModelos);
+            string? emb = Entorno.BuscarModeloEmbeddings(_carpetaModelos);
+            LblEstadoModelos.Text =
+                $"Se busca en: {string.Join(", ", Entorno.CarpetasModelos(_carpetaModelos))}.\n" +
+                $"{Entorno.ModeloLlm}: {llm ?? "no encontrado"}\n" +
+                $"{Entorno.ModeloEmbeddings}: {emb ?? "no encontrado (se usa la caché de HuggingFace de este usuario)"}";
+        }
+
+        private static string? ElegirCarpeta(string? inicial)
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog();
+            if (!string.IsNullOrEmpty(inicial) && Directory.Exists(inicial)) dlg.SelectedPath = inicial;
+            return dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK ? dlg.SelectedPath : null;
+        }
+
+        private void BtnExaminarBiblioteca_Click(object sender, RoutedEventArgs e)
+        {
+            string? elegida = ElegirCarpeta(Entorno.CarpetaBiblioteca(_carpetaBiblioteca));
+            if (elegida == null) return;
+            _carpetaBiblioteca = elegida;
+            MostrarBiblioteca();
+        }
+
+        private void BtnBibliotecaAutomatica_Click(object sender, RoutedEventArgs e)
+        {
+            _carpetaBiblioteca = null;
+            MostrarBiblioteca();
+        }
+
+        private void BtnExaminarModelos_Click(object sender, RoutedEventArgs e)
+        {
+            string? elegida = ElegirCarpeta(_carpetaModelos);
+            if (elegida == null) return;
+            _carpetaModelos = elegida;
+            MostrarModelos();
+        }
+
+        private void BtnModelosAutomatica_Click(object sender, RoutedEventArgs e)
+        {
+            _carpetaModelos = null;
+            MostrarModelos();
         }
 
         private void Tema_Changed(object sender, RoutedEventArgs e) => ActualizarEstadoTextura();
@@ -149,23 +216,26 @@ namespace ConsultorAcademicoGui
 
             string formato = (CmbFormatoExportacion.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content as string ?? "docx";
 
-            Result = new AppSettings
-            {
-                Tema = tema,
-                RutaTextura = tema == "Textura" ? TxtRutaTextura.Text.Trim() : null,
-                FormatoExportacion = formato,
-                CarpetaExportacionDefault = string.IsNullOrWhiteSpace(TxtCarpetaExportacion.Text) ? null : TxtCarpetaExportacion.Text.Trim(),
-                UsarGpuBusqueda = ChkUsarGpu.IsChecked == true,
-                TamanoFuenteResultados = SliderFuente.Value,
-                KResultadosDefault = kDefault,
-                MmrLambdaDefault = SliderMmr.Value,
-                AutoPurgarAlCerrar = ChkAutoPurgar.IsChecked == true,
-                CarpetaDescargas = string.IsNullOrWhiteSpace(TxtCarpetaDescargas.Text) ? null : TxtCarpetaDescargas.Text.Trim(),
-                RutaCatalogoCitaPdf = _rutaCatalogo,
-                // No se edita en esta ventana: sin copiarlo, guardar la
-                // configuración borraba el historial de búsquedas.
-                HistorialBusquedas = _actual.HistorialBusquedas,
-            };
+            // Se parte de una copia de la configuración actual y se pisan sólo
+            // los campos de esta ventana: armando un AppSettings nuevo, cada
+            // campo que no se edita acá (historial de búsquedas, Log
+            // desacoplado) se borraba al guardar si no se lo copiaba a mano.
+            var r = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(
+                System.Text.Json.JsonSerializer.Serialize(_actual))!;
+            r.Tema = tema;
+            r.RutaTextura = tema == "Textura" ? TxtRutaTextura.Text.Trim() : null;
+            r.FormatoExportacion = formato;
+            r.CarpetaExportacionDefault = string.IsNullOrWhiteSpace(TxtCarpetaExportacion.Text) ? null : TxtCarpetaExportacion.Text.Trim();
+            r.UsarGpuBusqueda = ChkUsarGpu.IsChecked == true;
+            r.TamanoFuenteResultados = SliderFuente.Value;
+            r.KResultadosDefault = kDefault;
+            r.MmrLambdaDefault = SliderMmr.Value;
+            r.AutoPurgarAlCerrar = ChkAutoPurgar.IsChecked == true;
+            r.CarpetaDescargas = string.IsNullOrWhiteSpace(TxtCarpetaDescargas.Text) ? null : TxtCarpetaDescargas.Text.Trim();
+            r.RutaCatalogoCitaPdf = _rutaCatalogo;
+            r.CarpetaBiblioteca = _carpetaBiblioteca;
+            r.CarpetaModelos = _carpetaModelos;
+            Result = r;
             DialogResult = true;
         }
 

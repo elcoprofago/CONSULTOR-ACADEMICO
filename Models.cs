@@ -181,8 +181,31 @@ namespace ConsultorAcademicoGui
         // .exe.
         public string? RutaCatalogoCitaPdf { get; set; }
 
+        // Carpeta raíz de los PDF (ver Entorno.CarpetaBiblioteca). null = en
+        // modo portable, <unidad>\BASE si existe; si no, ninguna.
+        public string? CarpetaBiblioteca { get; set; }
+
+        // Carpeta donde buscar primero los modelos (ver
+        // Entorno.CarpetasModelos). null = sólo las de siempre.
+        public string? CarpetaModelos { get; set; }
+
         // Últimas búsquedas (más reciente primero, tope 10; ver
         // RegistrarBusquedaEnHistorial en MainWindow.xaml.cs).
         public List<string> HistorialBusquedas { get; set; } = new();
+
+        // Log en ventana aparte (botón "Desacoplar"): si quedó así al cerrar
+        // la app y dónde estaba esa ventana, para reabrirla en el mismo
+        // monitor.
+        public bool LogDesacoplado { get; set; } = false;
+        public PosicionVentana? VentanaLog { get; set; }
+    }
+
+    public class PosicionVentana
+    {
+        public double Left { get; set; }
+        public double Top { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public bool Maximizada { get; set; }
     }
 }

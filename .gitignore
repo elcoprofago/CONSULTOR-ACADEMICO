@@ -11,3 +11,7 @@ BACKEND/*.log
 # Sesiones y exportaciones generadas por el usuario en tiempo de uso
 /Sesiones/
 /Exportaciones/
+
+# Carpeta portable armada por portable\build_portable.py
+/dist/
+__pycache__/
