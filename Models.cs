@@ -66,6 +66,81 @@ namespace ConsultorAcademicoGui
         public string? ficha_citapdf { get; set; }
     }
 
+    // --- Unificar con otra copia del consultor (POST /unificar/*) ---------
+
+    public class UnificarRequest
+    {
+        public string otra { get; set; } = "";  // documentos.json de la otra copia
+        public string? biblioteca_otra { get; set; }  // para resolver sus rutas relativas
+        public List<string> elegir_otra { get; set; } = new();  // conflictos resueltos con la otra
+        public List<string> excluir { get; set; } = new();  // agregados que no se suman
+    }
+
+    public class InfoBaseDto
+    {
+        public string ruta { get; set; } = "";
+        public string? modificado { get; set; }
+        public long bytes { get; set; }
+        public int documentos { get; set; }
+        public int fragmentos { get; set; }
+    }
+
+    public class VistaDocDto
+    {
+        public string documento_id { get; set; } = "";
+        public string titulo { get; set; } = "";
+        public string autor { get; set; } = "";
+        public string anio { get; set; } = "";
+        public string? fecha_modificacion { get; set; }
+        public string? fecha_ingesta { get; set; }
+        public int datos { get; set; }
+        // Sólo en los agregados:
+        public int n_fragmentos { get; set; }
+        public string? motivo_no_agregable { get; set; }
+    }
+
+    public class CampoConflictoDto
+    {
+        public string campo { get; set; } = "";
+        public string local { get; set; } = "";
+        public string otro { get; set; } = "";
+    }
+
+    public class ConflictoDto
+    {
+        public VistaDocDto local { get; set; } = new();
+        public VistaDocDto otro { get; set; } = new();
+        public List<CampoConflictoDto> campos { get; set; } = new();
+        public bool sugerencia_es_otro { get; set; }
+    }
+
+    public class CompletadoDto
+    {
+        public VistaDocDto local { get; set; } = new();
+        public VistaDocDto otro { get; set; } = new();
+        public List<string> campos { get; set; } = new();
+    }
+
+    public class AnalisisUnificacionDto
+    {
+        public InfoBaseDto esta { get; set; } = new();
+        public InfoBaseDto otra { get; set; } = new();
+        public int identicos { get; set; }
+        public int solo_locales { get; set; }
+        public List<ConflictoDto> conflictos { get; set; } = new();
+        public List<CompletadoDto> completados { get; set; } = new();
+        public List<VistaDocDto> agregados { get; set; } = new();
+    }
+
+    public class ResultadoUnificacionDto
+    {
+        public int agregados { get; set; }
+        public int completados { get; set; }
+        public int conflictos_con_otra { get; set; }
+        public int total { get; set; }
+        public string informe { get; set; } = "";
+    }
+
     // Respuesta de POST /ingestar.
     public class IngestaResponseDto
     {

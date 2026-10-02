@@ -10,10 +10,19 @@ namespace ConsultorAcademicoGui
 
         private readonly AppSettings _actual;
 
-        public SettingsWindow(AppSettings actual)
+        // Resumen de la unificación para el log (null si no se unificó). Ya
+        // quedó guardada aunque después se cancele esta ventana.
+        public string? InformeUnificacion { get; private set; }
+
+        public SettingsWindow(AppSettings actual, bool backendListo)
         {
             InitializeComponent();
             _actual = actual;
+            if (!backendListo)
+            {
+                BtnUnificar.IsEnabled = false;
+                LblUnificar.Text = "Para unificar con otra copia hay que esperar a que termine de cargar la biblioteca (el backend).";
+            }
 
             switch (actual.Tema)
             {
@@ -71,6 +80,21 @@ namespace ConsultorAcademicoGui
             if (dlg.ShowDialog() != true) return;
             _rutaCatalogo = dlg.FileName;
             MostrarCatalogo();
+        }
+
+        private void BtnUnificar_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Elegí el documentos.json de la otra copia (no se va a modificar)",
+                Filter = "Índice del consultor (documentos.json)|documentos.json|Todos los JSON (*.json)|*.json",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+
+            // Si es el mismo índice en uso, o no es un índice del consultor,
+            // lo rechaza el backend y UnificarWindow muestra el motivo.
+            var wnd = new UnificarWindow(dlg.FileName, UnificarWindow.BibliotecaDe(dlg.FileName)) { Owner = this };
+            if (wnd.ShowDialog() == true && wnd.Informe != null) InformeUnificacion = wnd.Informe;
         }
 
         private void BtnCatalogoPorDefecto_Click(object sender, RoutedEventArgs e)

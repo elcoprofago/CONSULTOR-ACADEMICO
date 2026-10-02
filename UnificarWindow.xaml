@@ -1,0 +1,117 @@
+<Window x:Class="ConsultorAcademicoGui.UnificarWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Unificar bibliotecas" Width="900" Height="680" MinWidth="600" MinHeight="380"
+        WindowStartupLocation="Manual" SourceInitialized="Window_SourceInitialized"
+        Loaded="Window_Loaded" PreviewKeyDown="Window_PreviewKeyDown"
+        Background="#FF1A1A1A">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource PanelBorder}"
+                    BorderThickness="1" CornerRadius="4" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="Esta biblioteca (en uso)" Style="{StaticResource SectionHeader}"/>
+                    <TextBlock x:Name="TxtInfoLocal" TextWrapping="Wrap" FontSize="11"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource PanelBorder}"
+                    BorderThickness="1" CornerRadius="4" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="La otra (no se modifica)" Style="{StaticResource SectionHeader}"/>
+                    <TextBlock x:Name="TxtInfoOtra" TextWrapping="Wrap" FontSize="11"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="1" x:Name="TxtResumen" TextWrapping="Wrap" Margin="0,10,0,6" Text="Comparando las dos bibliotecas..."/>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <Expander x:Name="ExpConflictos" IsExpanded="True" Margin="0,0,0,8" Foreground="{StaticResource TextMain}" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Foreground="{StaticResource TextDim}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,4,0,6"
+                                   Text="El mismo PDF (mismo SHA-256) tiene datos distintos en cada biblioteca. Elegí qué versión conservar en cada caso (sólo se reemplazan los campos que se muestran; los vacíos ya se completan solos). La sugerida es la modificada más recientemente o, si no hay fecha, la que tiene más datos."/>
+                        <ItemsControl x:Name="ListaConflictos">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource PanelBorder}" BorderThickness="0,0,0,1" Padding="0,6">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Encabezado}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <!-- Los dos RadioButton comparten panel padre y por eso
+                                                 forman grupo solos (sin GroupName, que sería común a
+                                                 toda la ventana). -->
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <RadioButton Grid.Column="0" IsChecked="{Binding ElegirLocal}" VerticalAlignment="Top" VerticalContentAlignment="Top">
+                                                    <TextBlock Text="{Binding TextoLocal}" TextWrapping="Wrap"/>
+                                                </RadioButton>
+                                                <RadioButton Grid.Column="1" IsChecked="{Binding ElegirOtro}" VerticalAlignment="Top" VerticalContentAlignment="Top">
+                                                    <TextBlock Text="{Binding TextoOtro}" TextWrapping="Wrap"/>
+                                                </RadioButton>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
+
+                <Expander x:Name="ExpAgregados" IsExpanded="True" Margin="0,0,0,8" Foreground="{StaticResource TextMain}" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Foreground="{StaticResource TextDim}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,4,0,6"
+                                   Text="Están sólo en la otra biblioteca y se agregan a ésta, con su texto y sus fragmentos ya indexados (el PDF no se copia: se guarda su ruta). Desmarcá los que hayas borrado acá a propósito. Si su ID ya está ocupado acá, se le da el siguiente libre."/>
+                        <ItemsControl x:Name="ListaAgregados">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding Incluir}" IsEnabled="{Binding Agregable}" Margin="0,2">
+                                        <TextBlock Text="{Binding Texto}" TextWrapping="Wrap"/>
+                                    </CheckBox>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
+
+                <Expander x:Name="ExpCompletados" IsExpanded="False" Foreground="{StaticResource TextMain}" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Foreground="{StaticResource TextDim}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,4,0,6"
+                                   Text="Campos vacíos en esta biblioteca que se completan con los de la otra (no pisan nada)."/>
+                        <ItemsControl x:Name="ListaCompletados">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,2"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </ScrollViewer>
+
+        <DockPanel Grid.Row="3" Margin="0,10,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="BtnUnificar" Content="Unificar" IsEnabled="False" Click="BtnUnificar_Click"
+                        Style="{StaticResource ConsultarButtonStyle}"/>
+                <Button x:Name="BtnCancelar" Content="Cancelar" Margin="8,0,0,0" Click="BtnCancelar_Click"/>
+            </StackPanel>
+            <TextBlock Foreground="{StaticResource TextDim}" FontStyle="Italic" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="11"
+                       Text="No se hace copia de respaldo: lo nuevo se escribe aparte, se verifica y recién entonces reemplaza al índice. La otra copia sólo se lee. Nada se borra."/>
+        </DockPanel>
+    </Grid>
+</Window>

@@ -211,10 +211,22 @@ namespace ConsultorAcademicoGui
             BorderBotones.Background = fondoPaneles;
         }
 
-        private void BtnConfiguracion_Click(object sender, RoutedEventArgs e)
+        private async void BtnConfiguracion_Click(object sender, RoutedEventArgs e)
         {
-            var wnd = new SettingsWindow(_settings) { Owner = this };
-            if (wnd.ShowDialog() != true || wnd.Result == null) return;
+            // BtnAgregarMaterial sólo lo cambia SetControlesListos: está
+            // habilitado si y sólo si el backend está listo (BtnConsultar
+            // además se apaga durante cada consulta).
+            var wnd = new SettingsWindow(_settings, BtnAgregarMaterial.IsEnabled) { Owner = this };
+            bool guardar = wnd.ShowDialog() == true;
+
+            // La unificación ya quedó guardada aunque después se cancele
+            // Configuración.
+            if (wnd.InformeUnificacion != null)
+            {
+                Log(wnd.InformeUnificacion, "OK");
+                await CargarFiltroAsync();
+            }
+            if (!guardar || wnd.Result == null) return;
 
             bool requiereReinicioBackend =
                 wnd.Result.UsarGpuBusqueda != _settings.UsarGpuBusqueda ||

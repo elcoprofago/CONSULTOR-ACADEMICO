@@ -56,6 +56,13 @@ if _faltan:
         f"ACADEMICO-SCRIPTS/ingesta.py es anterior a esta versión del consultor (falta {', '.join(_faltan)}). "
         "Actualizá ACADEMICO-PROYECTO junto con CONSULTOR-ACADEMICO-GUI."
     )
+try:
+    import unificar  # noqa: E402
+except ImportError as exc:
+    raise SystemExit(
+        f"ACADEMICO-SCRIPTS es anterior a esta versión del consultor (no tiene unificar.py: {exc}). "
+        "Actualizá ACADEMICO-PROYECTO junto con CONSULTOR-ACADEMICO-GUI."
+    ) from exc
 
 print("Backend listo.", flush=True)
 
@@ -123,6 +130,13 @@ class RutaRequest(BaseModel):
 
 class FichaRequest(BaseModel):
     ficha_citapdf: Optional[str] = None  # None quita el vínculo
+
+
+class UnificarRequest(BaseModel):
+    otra: str  # documentos.json de la otra copia
+    biblioteca_otra: Optional[str] = None  # su carpeta de biblioteca, para sus rutas relativas
+    elegir_otra: List[str] = []  # conflictos (documento_id de ésta) resueltos con la otra
+    excluir: List[str] = []  # documento_id de la otra que no se agregan
 
 
 class IngestaResponse(BaseModel):
@@ -227,3 +241,23 @@ def vincular_ficha(documento_id: str, req: FichaRequest):
     except ingesta.FichaInvalidaError as exc:
         raise HTTPException(400, str(exc)) from exc
     return next(d for d in api.listar_documentos() if d["documento_id"] == documento_id)
+
+
+@app.post("/unificar/analizar")
+def unificar_analizar(req: UnificarRequest):
+    """Compara esta biblioteca con otra copia, sin modificar ninguna (ver
+    ACADEMICO-SCRIPTS/unificar.py)."""
+    try:
+        return unificar.analizar(req.otra, req.biblioteca_otra)
+    except unificar.UnificacionError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/unificar/aplicar")
+def unificar_aplicar(req: UnificarRequest):
+    """Suma a esta biblioteca lo de la otra copia (que no se modifica) con
+    las decisiones del usuario sobre conflictos y agregados."""
+    try:
+        return unificar.aplicar(req.otra, req.elegir_otra, req.excluir, req.biblioteca_otra)
+    except unificar.UnificacionError as exc:
+        raise HTTPException(400, str(exc)) from exc

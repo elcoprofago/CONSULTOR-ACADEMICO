@@ -110,6 +110,14 @@
                     <TextBlock x:Name="LblEstadoCatalogo" Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     <TextBlock Text="De ahí salen las fichas adjuntas a cada documento. El consultor solo lo lee: nunca lo modifica. Con CitaPDF portable, elegí el biblioteca.json de su carpeta datos."
                                Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                    <DockPanel Margin="0,14,0,0">
+                        <Button x:Name="BtnUnificar" DockPanel.Dock="Right" Content="Unificar con otra..." Margin="8,0,0,0"
+                                Click="BtnUnificar_Click" VerticalAlignment="Top"
+                                ToolTip="Suma a esta biblioteca lo que tenga otra copia del consultor (de otra PC, pendrive, respaldo...)"/>
+                        <TextBlock x:Name="LblUnificar" Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap"
+                                   Text="Suma a esta biblioteca lo que tenga otra copia del consultor (la de la PC, la del pendrive...): elegí su documentos.json (carpeta data\ACADEMICO-INDEX). La otra no se modifica."/>
+                    </DockPanel>
                 </StackPanel>
             </Border>
 
