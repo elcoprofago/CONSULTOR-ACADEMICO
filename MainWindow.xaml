@@ -74,7 +74,7 @@
                                           BorderBrush="{StaticResource PanelBorder}"
                                           Content="(todos)"/>
                             <Popup x:Name="PopupFiltro" PlacementTarget="{Binding ElementName=BtnFiltroToggle}"
-                                   Placement="Bottom" StaysOpen="False" Width="300"
+                                   Placement="Bottom" StaysOpen="False" Width="360"
                                    IsOpen="{Binding IsChecked, ElementName=BtnFiltroToggle, Mode=TwoWay}">
                                 <Border Background="{StaticResource PanelBg}" BorderBrush="{StaticResource PanelBorder}"
                                         BorderThickness="1">
@@ -87,16 +87,20 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <CheckBox Grid.Column="0" Content="{Binding Label}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                                                   Foreground="White" FontWeight="SemiBold"
                                                                   Checked="FiltroCheckBox_Changed" Unchecked="FiltroCheckBox_Changed"/>
                                                         <Button Grid.Column="1" Content="Cita" FontSize="10" Padding="4,0"
-                                                                ToolTip="Copiar cita (APA) de este documento"
+                                                                ToolTip="Copiar cita (APA) de este documento: la de su ficha de CitaPDF si tiene una"
                                                                 Click="FiltroCopiarCita_Click"/>
                                                         <Button Grid.Column="2" Content="PDF" FontSize="10" Padding="4,0" Margin="4,0,0,0"
                                                                 ToolTip="Abrir el PDF original (o ubicarlo si se movió)"
                                                                 Click="FiltroAbrirPdf_Click"/>
+                                                        <Button Grid.Column="3" Content="Ficha" FontSize="10" Padding="4,0" Margin="4,0,0,0"
+                                                                ToolTip="Ficha del catálogo de CitaPDF (ver, vincular)"
+                                                                Click="FiltroFicha_Click"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>

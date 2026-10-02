@@ -1,0 +1,34 @@
+<Window x:Class="ConsultorAcademicoGui.FichaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ficha CitaPDF" Width="620" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" PreviewKeyDown="Window_PreviewKeyDown"
+        Background="#FF1A1A1A">
+    <StackPanel Margin="14">
+        <TextBlock x:Name="TxtDocumento" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,0,0,8"/>
+        <TextBlock x:Name="TxtEstado" TextWrapping="Wrap" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,0,0,10"/>
+
+        <Border x:Name="PanelFicha" Background="{StaticResource PanelBg}" CornerRadius="4" Padding="12" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Cita (APA, de CitaPDF)" Foreground="{StaticResource TextDim}" FontSize="11"/>
+                <TextBox x:Name="TxtCita" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0"
+                         Background="Transparent" Foreground="White" Margin="0,2,0,10"/>
+                <Grid x:Name="GridCampos">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <DockPanel>
+            <Button x:Name="BtnCopiarCita" DockPanel.Dock="Left" Content="Copiar cita" Click="BtnCopiarCita_Click"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BtnVincular" Content="Vincular con el catálogo..." Click="BtnVincular_Click"/>
+                <Button x:Name="BtnQuitar" Content="Quitar vínculo" Margin="8,0,0,0" Click="BtnQuitar_Click"/>
+                <Button Content="Cerrar" Margin="8,0,0,0" Click="BtnCerrar_Click"/>
+            </StackPanel>
+        </DockPanel>
+    </StackPanel>
+</Window>

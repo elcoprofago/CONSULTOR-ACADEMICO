@@ -1,13 +1,28 @@
 <Window x:Class="ConsultorAcademicoGui.AgregarMaterialWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Agregar material" Height="600" Width="480"
+        Title="Agregar material" Height="700" Width="480"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#FF1A1A1A">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
         <StackPanel>
+
+            <TextBlock Text="Ficha de CitaPDF (opcional)" Style="{StaticResource SectionHeader}"/>
+            <Border Background="{StaticResource PanelBg}" BorderThickness="0" CornerRadius="4" Padding="12" Margin="0,0,0,16">
+                <StackPanel>
+                    <DockPanel>
+                        <Button x:Name="BtnQuitarFicha" DockPanel.Dock="Right" Content="Quitar" Margin="8,0,0,0"
+                                Visibility="Collapsed" Click="BtnQuitarFicha_Click"/>
+                        <Button x:Name="BtnDesdeCatalogo" Content="Desde el catálogo de CitaPDF..."
+                                HorizontalAlignment="Left" Click="BtnDesdeCatalogo_Click"/>
+                    </DockPanel>
+                    <TextBlock x:Name="LblFicha" Foreground="{StaticResource TextDim}" FontSize="11"
+                               TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="Elegir un registro del catálogo completa los datos y el origen, y deja la ficha adjunta al documento."/>
+                </StackPanel>
+            </Border>
 
             <TextBlock Text="Origen" Style="{StaticResource SectionHeader}"/>
             <Border Background="{StaticResource PanelBg}" BorderThickness="0" CornerRadius="4" Padding="12" Margin="0,0,0,16">

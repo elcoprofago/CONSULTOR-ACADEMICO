@@ -50,12 +50,20 @@ namespace ConsultorAcademicoGui
         public string? origen_url { get; set; }
         public string hash_sha256 { get; set; } = "";
         public string? copia_interna { get; set; }
+        // Vínculo elegido a mano con un registro de CitaPDF (su HashSha256).
+        public string? ficha_citapdf { get; set; }
     }
 
     // Cuerpo de POST /documentos/{id}/ruta.
     public class RutaRequest
     {
         public string ruta_archivo { get; set; } = "";
+    }
+
+    // Cuerpo de POST /documentos/{id}/ficha (null quita el vínculo).
+    public class FichaRequest
+    {
+        public string? ficha_citapdf { get; set; }
     }
 
     // Respuesta de POST /ingestar.
@@ -110,6 +118,8 @@ namespace ConsultorAcademicoGui
         public string? RutaArchivo { get; set; }
         public string? CopiaInterna { get; set; }
         public string Hash { get; set; } = "";
+        // Para el botón "Ficha" (ver CatalogoCitaPdf.FichaDe).
+        public string? FichaVinculada { get; set; }
     }
 
     // --- Sesión (Guardar/Cargar sesión, Requisitos 21-23) -----------------
@@ -164,6 +174,12 @@ namespace ConsultorAcademicoGui
         // ejemplar: el consultor no copia PDFs). Sin carpeta elegida, agregar
         // por URL se rechaza.
         public string? CarpetaDescargas { get; set; }
+
+        // biblioteca.json de CitaPDF, que el consultor sólo lee. null = la
+        // ubicación por defecto de CitaPDF (Documentos\CitaPDF); hace falta
+        // elegirla para la versión portable, que guarda sus datos junto al
+        // .exe.
+        public string? RutaCatalogoCitaPdf { get; set; }
 
         // Últimas búsquedas (más reciente primero, tope 10; ver
         // RegistrarBusquedaEnHistorial en MainWindow.xaml.cs).

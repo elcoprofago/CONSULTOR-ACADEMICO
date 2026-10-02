@@ -281,7 +281,7 @@ namespace ConsultorAcademicoGui
         }
 
         // 400/404 traen {"detail": "texto"}; 409 trae {"detail": {"mensaje": ...}}.
-        private static string? ExtraerDetalle(string body)
+        internal static string? ExtraerDetalle(string body)
         {
             try
             {

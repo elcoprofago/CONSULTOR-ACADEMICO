@@ -44,13 +44,14 @@ import ingesta  # noqa: E402
 import responder_api as api  # noqa: E402
 
 # Contrato con ACADEMICO-SCRIPTS (otro repo): este backend manda la ruta del
-# PDF, no sus bytes, y registra rutas nuevas con actualizar_ruta(). Con un
-# ingesta.py anterior a ese cambio fallaría recién al agregar material, con
-# un error 500 sin explicación.
-if not hasattr(ingesta, "actualizar_ruta"):
+# PDF, no sus bytes, registra rutas nuevas con actualizar_ruta() y vínculos
+# con fichas de CitaPDF con vincular_ficha(). Con un ingesta.py anterior
+# fallaría recién al usar esas funciones, con un error 500 sin explicación.
+_faltan = [n for n in ("actualizar_ruta", "vincular_ficha", "FichaInvalidaError") if not hasattr(ingesta, n)]
+if _faltan:
     raise SystemExit(
-        "ACADEMICO-SCRIPTS/ingesta.py es anterior al cambio que dejó de copiar PDFs "
-        "(falta actualizar_ruta). Actualizá ACADEMICO-PROYECTO junto con CONSULTOR-ACADEMICO-GUI."
+        f"ACADEMICO-SCRIPTS/ingesta.py es anterior a esta versión del consultor (falta {', '.join(_faltan)}). "
+        "Actualizá ACADEMICO-PROYECTO junto con CONSULTOR-ACADEMICO-GUI."
     )
 
 print("Backend listo.", flush=True)
@@ -108,10 +109,17 @@ class DocumentoResponse(BaseModel):
     origen_url: Optional[str] = None
     hash_sha256: str = ""
     copia_interna: Optional[str] = None
+    # Vínculo elegido a mano con un registro del catálogo de CitaPDF (su
+    # HashSha256), para cuando el PDF no es el mismo archivo catalogado.
+    ficha_citapdf: Optional[str] = None
 
 
 class RutaRequest(BaseModel):
     ruta_archivo: str
+
+
+class FichaRequest(BaseModel):
+    ficha_citapdf: Optional[str] = None  # None quita el vínculo
 
 
 class IngestaResponse(BaseModel):
@@ -151,6 +159,7 @@ def ingestar(
     ruta_archivo: Optional[str] = Form(None),
     origen_url: Optional[str] = Form(None),
     carpeta_descargas: Optional[str] = Form(None),
+    ficha_citapdf: Optional[str] = Form(None),
 ):
     """El PDF ya no viaja en la request: la GUI manda la ruta del archivo
     local (que se indexa desde ahí, sin copiarlo) o la URL más la carpeta
@@ -173,13 +182,15 @@ def ingestar(
             autor=autor.strip(),
             anio=anio.strip(),
             fuente_editorial=fuente_editorial.strip(),
+            ficha_citapdf=ficha_citapdf,
         )
     except ingesta.DocumentoDuplicadoError as exc:
         raise HTTPException(
             409, {"mensaje": str(exc), "documento_id_existente": exc.documento_id_existente}
         ) from exc
     except (ingesta.PdfInvalidoError, ingesta.TextoNoExtraibleError, ingesta.DescargaFallidaError,
-            ingesta.ArchivoNoEncontradoError, ingesta.CarpetaDescargasError) as exc:
+            ingesta.ArchivoNoEncontradoError, ingesta.CarpetaDescargasError,
+            ingesta.FichaInvalidaError) as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
@@ -198,5 +209,18 @@ def actualizar_ruta(documento_id: str, req: RutaRequest):
                   "documento_id_existente": exc.documento_id_existente}
         ) from exc
     except (ingesta.ArchivoNoEncontradoError, ingesta.HashDistintoError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return next(d for d in api.listar_documentos() if d["documento_id"] == documento_id)
+
+
+@app.post("/documentos/{documento_id}/ficha", response_model=DocumentoResponse)
+def vincular_ficha(documento_id: str, req: FichaRequest):
+    """Vincula el documento con un registro del catálogo de CitaPDF (o quita
+    el vínculo con ficha_citapdf = null). El catálogo lo lee la GUI."""
+    try:
+        ingesta.vincular_ficha(documento_id, req.ficha_citapdf)
+    except ingesta.DocumentoInexistenteError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ingesta.FichaInvalidaError as exc:
         raise HTTPException(400, str(exc)) from exc
     return next(d for d in api.listar_documentos() if d["documento_id"] == documento_id)

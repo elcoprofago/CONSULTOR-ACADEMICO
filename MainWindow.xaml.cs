@@ -73,6 +73,7 @@ namespace ConsultorAcademicoGui
 
         private AppSettings _settings = new();
         private bool _avisoPdfsSinUbicarMostrado;
+        private bool _avisoCatalogoMostrado;
         private BitmapImage? _iconoConfigNormal;
         private BitmapImage? _iconoConfigHover;
 
@@ -215,8 +216,10 @@ namespace ConsultorAcademicoGui
                 wnd.Result.UsarGpuBusqueda != _settings.UsarGpuBusqueda ||
                 wnd.Result.MmrLambdaDefault != _settings.MmrLambdaDefault;
 
+            bool cambioCatalogo = wnd.Result.RutaCatalogoCitaPdf != _settings.RutaCatalogoCitaPdf;
             _settings = wnd.Result;
             GuardarSettings();
+            if (cambioCatalogo) InformarCatalogo();
             AplicarTema();
             RenderPage();
             Log("Configuración guardada.", "OK");
@@ -361,6 +364,7 @@ namespace ConsultorAcademicoGui
                         RutaArchivo = d.ruta_archivo,
                         CopiaInterna = d.copia_interna,
                         Hash = d.hash_sha256,
+                        FichaVinculada = d.ficha_citapdf,
                     })
                     .ToList();
                 // Conserva las marcas de filtro al recargar (tras agregar
@@ -382,12 +386,46 @@ namespace ConsultorAcademicoGui
                             $"({string.Join(", ", sinUbicar.Select(i => i.Value))}). La búsqueda funciona igual; " +
                             "para abrirlos, usá el botón \"PDF\" de la lista de documentos, que permite ubicarlos.", "WARN");
                 }
+                if (!_avisoCatalogoMostrado)
+                {
+                    _avisoCatalogoMostrado = true;
+                    InformarCatalogo();
+                }
             }
             catch (Exception ex)
             {
                 Log($"No se pudo cargar la lista de documentos: {ex.Message}", "ERROR");
                 ListFiltro.ItemsSource = new List<CheckableItem>();
             }
+        }
+
+        private List<CheckableItem> DocumentosCargados() =>
+            ListFiltro.ItemsSource as List<CheckableItem> ?? new List<CheckableItem>();
+
+        // Estado del catálogo de CitaPDF en el log: al cargar la lista de
+        // documentos por primera vez y al cambiar su ruta en Configuración.
+        private void InformarCatalogo()
+        {
+            var catalogo = CatalogoCitaPdf.Cargar(_settings.RutaCatalogoCitaPdf);
+            if (!catalogo.Disponible)
+            {
+                // Sin ruta elegida y sin CitaPDF en esta PC no es un problema:
+                // la ficha es opcional.
+                bool porDefectoAusente = string.IsNullOrWhiteSpace(_settings.RutaCatalogoCitaPdf) && !File.Exists(catalogo.Ruta);
+                Log(porDefectoAusente
+                        ? $"Fichas de CitaPDF: no se encontró su catálogo en {catalogo.Ruta}. Si usás CitaPDF portable, elegí su biblioteca.json en Configuración → Biblioteca."
+                        : $"Fichas de CitaPDF no disponibles: {catalogo.Error}",
+                    porDefectoAusente ? "INFO" : "WARN");
+                return;
+            }
+            var docs = DocumentosCargados();
+            int conFicha = docs.Count(d => CatalogoCitaPdf.FichaDe(d, catalogo).Ficha != null);
+            var rotos = docs.Where(d => CatalogoCitaPdf.FichaDe(d, catalogo).Tipo == CatalogoCitaPdf.Vinculo.ManualNoEncontrado)
+                .Select(d => d.Value).ToList();
+            Log($"Catálogo de CitaPDF: {catalogo.Fichas.Count} registros ({catalogo.Ruta}). " +
+                $"{conFicha} de {docs.Count} documento(s) con ficha; los demás se vinculan con el botón \"Ficha\".", "INFO");
+            if (rotos.Count > 0)
+                Log($"Vínculo con una ficha que ya no está en el catálogo: {string.Join(", ", rotos)}.", "WARN");
         }
 
         private List<string> FiltroSeleccionado()
@@ -432,9 +470,28 @@ namespace ConsultorAcademicoGui
         private void FiltroCopiarCita_Click(object sender, RoutedEventArgs e)
         {
             if ((sender as FrameworkElement)?.DataContext is not CheckableItem item) return;
+            var (ficha, _) = CatalogoCitaPdf.FichaDe(item, CatalogoCitaPdf.Cargar(_settings.RutaCatalogoCitaPdf));
+            if (ficha != null && !string.IsNullOrWhiteSpace(ficha.CitaApa))
+            {
+                Clipboard.SetText(ficha.CitaApa);
+                Log($"Cita copiada al portapapeles (ficha CitaPDF {ficha.DocumentoId}): {ficha.CitaApa}", "OK");
+                return;
+            }
             string cita = ConstruirCitaApa(item.Autor, item.Anio, item.Titulo, item.FuenteEditorial);
             Clipboard.SetText(cita);
             Log($"Cita copiada al portapapeles: {cita}", "OK");
+        }
+
+        // Botón "Ficha" por fila: la ficha de CitaPDF del documento, y
+        // vincularla a mano si su PDF no es el mismo archivo catalogado.
+        private void FiltroFicha_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is not CheckableItem item) return;
+            BtnFiltroToggle.IsChecked = false;
+            var wnd = new FichaWindow(item, DocumentosCargados(), _settings.RutaCatalogoCitaPdf, (m, nivel) => Log(m, nivel))
+                { Owner = this };
+            wnd.ShowDialog();
+            if (wnd.HuboCambios) RenderPage();
         }
 
         // Botón "PDF" por fila: abre el original desde su ruta registrada (el
@@ -603,7 +660,8 @@ namespace ConsultorAcademicoGui
 
         private void BtnAgregarMaterial_Click(object sender, RoutedEventArgs e)
         {
-            var wnd = new AgregarMaterialWindow(Log, CargarFiltroAsync, _settings.CarpetaDescargas) { Owner = this };
+            var wnd = new AgregarMaterialWindow(Log, CargarFiltroAsync, _settings.CarpetaDescargas,
+                                                _settings.RutaCatalogoCitaPdf, DocumentosCargados) { Owner = this };
             wnd.ShowDialog();
         }
 
@@ -659,6 +717,9 @@ namespace ConsultorAcademicoGui
             int inicio = _currentPage * PageSize;
             var pagina = _currentFragmentos.Skip(inicio).Take(PageSize).ToList();
 
+            var catalogo = CatalogoCitaPdf.Cargar(_settings.RutaCatalogoCitaPdf);
+            var docsPorId = DocumentosCargados().ToDictionary(d => d.Value);
+
             foreach (var frag in pagina)
             {
                 var border = new Border
@@ -680,6 +741,9 @@ namespace ConsultorAcademicoGui
                     _settings.TamanoFuenteResultados);
                 citaBox.Margin = new Thickness(0, 0, 0, 4);
                 stack.Children.Add(citaBox);
+                if (docsPorId.TryGetValue(frag.documento_id, out var doc) &&
+                    CatalogoCitaPdf.FichaDe(doc, catalogo).Ficha is { } ficha)
+                    stack.Children.Add(CrearFichaAdjunta(ficha));
                 stack.Children.Add(MakeSelectableText(
                     frag.texto,
                     new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x22)),
@@ -694,6 +758,46 @@ namespace ConsultorAcademicoGui
             TxtContador.Text = $"{desde}-{hasta} de {_currentFragmentos.Count}";
             BtnAnterior.IsEnabled = _currentPage > 0;
             BtnSiguiente.IsEnabled = _currentPage < totalPages - 1;
+        }
+
+        // Ficha de CitaPDF bajo la cita del fragmento, plegada para no
+        // alargar cada resultado.
+        private Expander CrearFichaAdjunta(FichaCitaPdf ficha)
+        {
+            var oscuro = new SolidColorBrush(Color.FromRgb(0x22, 0x22, 0x22));
+            var tenue = new SolidColorBrush(Color.FromRgb(0x66, 0x5E, 0x50));
+            double tam = Math.Max(10, _settings.TamanoFuenteResultados - 1);
+            var cuerpo = new StackPanel { Margin = new Thickness(18, 4, 0, 4) };
+            if (!string.IsNullOrWhiteSpace(ficha.CitaApa))
+                cuerpo.Children.Add(MakeSelectableText(ficha.CitaApa, oscuro, FontWeights.Normal, tam));
+            var datos = new List<string>();
+            if (!string.IsNullOrWhiteSpace(ficha.Editorial)) datos.Add(ficha.Editorial);
+            if (!string.IsNullOrWhiteSpace(ficha.RutaArchivoOriginal)) datos.Add($"PDF catalogado: {ficha.RutaArchivoOriginal}");
+            if (!string.IsNullOrWhiteSpace(ficha.OrigenUrl)) datos.Add($"URL: {ficha.OrigenUrl}");
+            if (datos.Count > 0)
+                cuerpo.Children.Add(MakeSelectableText(string.Join("\n", datos), tenue, FontWeights.Normal, tam - 1));
+            var copiar = new Button
+            {
+                Content = "Copiar cita",
+                FontSize = 10,
+                Padding = new Thickness(6, 1, 6, 1),
+                Margin = new Thickness(0, 4, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                IsEnabled = !string.IsNullOrWhiteSpace(ficha.CitaApa),
+            };
+            copiar.Click += (_, _) =>
+            {
+                Clipboard.SetText(ficha.CitaApa);
+                Log($"Cita copiada al portapapeles (ficha CitaPDF {ficha.DocumentoId}): {ficha.CitaApa}", "OK");
+            };
+            cuerpo.Children.Add(copiar);
+            return new Expander
+            {
+                Header = new TextBlock { Text = $"Ficha CitaPDF · {ficha.DocumentoId}", Foreground = tenue, FontSize = tam - 1 },
+                Content = cuerpo,
+                Foreground = oscuro,
+                Margin = new Thickness(0, 0, 0, 6),
+            };
         }
 
         private void BtnAnterior_Click(object sender, RoutedEventArgs e) { _currentPage--; RenderPage(); }

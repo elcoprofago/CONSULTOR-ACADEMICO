@@ -41,8 +41,38 @@ namespace ConsultorAcademicoGui
             SliderFuente.Value = actual.TamanoFuenteResultados;
             ChkAutoPurgar.IsChecked = actual.AutoPurgarAlCerrar;
             TxtCarpetaDescargas.Text = actual.CarpetaDescargas ?? "";
+            _rutaCatalogo = actual.RutaCatalogoCitaPdf;
+            MostrarCatalogo();
 
             ActualizarEstadoTextura();
+        }
+
+        // null = el catálogo por defecto de CitaPDF instalado.
+        private string? _rutaCatalogo;
+
+        private void MostrarCatalogo()
+        {
+            var catalogo = CatalogoCitaPdf.Cargar(_rutaCatalogo);
+            TxtCatalogoCitaPdf.Text = catalogo.Ruta;
+            LblEstadoCatalogo.Text = (_rutaCatalogo == null ? "Por defecto. " : "") +
+                (catalogo.Disponible ? $"Se lee bien: {catalogo.Fichas.Count} registros." : catalogo.Error);
+        }
+
+        private void BtnExaminarCatalogo_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog { Filter = "Catálogo de CitaPDF (biblioteca.json)|*.json" };
+            string actual = CatalogoCitaPdf.RutaEfectiva(_rutaCatalogo);
+            string? carpeta = Path.GetDirectoryName(actual);
+            if (carpeta != null && Directory.Exists(carpeta)) dlg.InitialDirectory = carpeta;
+            if (dlg.ShowDialog() != true) return;
+            _rutaCatalogo = dlg.FileName;
+            MostrarCatalogo();
+        }
+
+        private void BtnCatalogoPorDefecto_Click(object sender, RoutedEventArgs e)
+        {
+            _rutaCatalogo = null;
+            MostrarCatalogo();
         }
 
         private void Tema_Changed(object sender, RoutedEventArgs e) => ActualizarEstadoTextura();
@@ -131,6 +161,7 @@ namespace ConsultorAcademicoGui
                 MmrLambdaDefault = SliderMmr.Value,
                 AutoPurgarAlCerrar = ChkAutoPurgar.IsChecked == true,
                 CarpetaDescargas = string.IsNullOrWhiteSpace(TxtCarpetaDescargas.Text) ? null : TxtCarpetaDescargas.Text.Trim(),
+                RutaCatalogoCitaPdf = _rutaCatalogo,
                 // No se edita en esta ventana: sin copiarlo, guardar la
                 // configuración borraba el historial de búsquedas.
                 HistorialBusquedas = _actual.HistorialBusquedas,

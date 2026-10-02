@@ -78,6 +78,23 @@
                     </Grid>
                     <TextBlock Text="Donde se guarda el PDF del material agregado por URL. El consultor no copia los PDFs: indexa cada uno desde donde está y recuerda su ruta."
                                Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+
+                    <TextBlock Text="Catálogo de CitaPDF (biblioteca.json)" Foreground="{StaticResource TextDim}" FontSize="11" Margin="0,14,0,0"/>
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtCatalogoCitaPdf" Grid.Column="0" IsReadOnly="True"
+                                 VerticalContentAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Content="Examinar..." Click="BtnExaminarCatalogo_Click"/>
+                        <Button Grid.Column="2" Content="Por defecto" Margin="8,0,0,0" Click="BtnCatalogoPorDefecto_Click"
+                                ToolTip="Usar el catálogo de CitaPDF instalado (Documentos\CitaPDF\biblioteca.json)"/>
+                    </Grid>
+                    <TextBlock x:Name="LblEstadoCatalogo" Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <TextBlock Text="De ahí salen las fichas adjuntas a cada documento. El consultor solo lo lee: nunca lo modifica. Con CitaPDF portable, elegí el biblioteca.json de su carpeta datos."
+                               Foreground="{StaticResource TextDim}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
 
