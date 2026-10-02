@@ -4,7 +4,8 @@
         xmlns:local="clr-namespace:ConsultorAcademicoGui"
         Title="CONSULTOR-ACADEMICO-GUI" Height="950" Width="1500"
         MinHeight="650" MinWidth="1100"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
+        SourceInitialized="Window_SourceInitialized"
         Background="#FF1A1A1A"
         Closing="Window_Closing">
 
@@ -74,7 +75,8 @@
                                           BorderBrush="{StaticResource PanelBorder}"
                                           Content="(todos)"/>
                             <Popup x:Name="PopupFiltro" PlacementTarget="{Binding ElementName=BtnFiltroToggle}"
-                                   Placement="Bottom" StaysOpen="False" Width="360"
+                                   Placement="Bottom" StaysOpen="False"
+                                   Width="{Binding ActualWidth, ElementName=TxtPregunta}"
                                    IsOpen="{Binding IsChecked, ElementName=BtnFiltroToggle, Mode=TwoWay}">
                                 <Border Background="{StaticResource PanelBg}" BorderBrush="{StaticResource PanelBorder}"
                                         BorderThickness="1">
@@ -89,9 +91,12 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <CheckBox Grid.Column="0" Content="{Binding Label}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                                                   Foreground="White" FontWeight="SemiBold"
-                                                                  Checked="FiltroCheckBox_Changed" Unchecked="FiltroCheckBox_Changed"/>
+                                                                  ToolTip="{Binding Label}"
+                                                                  Checked="FiltroCheckBox_Changed" Unchecked="FiltroCheckBox_Changed">
+                                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                                                        </CheckBox>
                                                         <Button Grid.Column="1" Content="Cita" FontSize="10" Padding="4,0"
                                                                 ToolTip="Copiar cita (APA) de este documento: la de su ficha de CitaPDF si tiene una"
                                                                 Click="FiltroCopiarCita_Click"/>

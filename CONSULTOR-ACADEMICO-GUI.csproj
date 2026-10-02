@@ -12,6 +12,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>CONSULTOR-ACADEMICO-GUI</AssemblyName>
     <RootNamespace>ConsultorAcademicoGui</RootNamespace>
+    <!-- También es el ícono del lanzador portable (build_portable.py). -->
+    <ApplicationIcon>balanza5.ico</ApplicationIcon>
     <!-- La versión de la carpeta portable: build_portable.py la lee de acá
          para app\VERSION y VERSION.txt, publicar.py la usa como etiqueta
          v<Version> de la release y el botón Actualizar la compara con la

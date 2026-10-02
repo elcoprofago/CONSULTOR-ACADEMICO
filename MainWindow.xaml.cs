@@ -1706,6 +1706,28 @@ namespace ConsultorAcademicoGui
             TxtLog.ScrollToEnd();
         }
 
+        // Tamaño inicial: el del XAML si entra en el área de trabajo del monitor
+        // donde abre (el del cursor, como hacía CenterScreen); si no, el 90 % de
+        // esa área, centrada. Los mínimos también se achican si no entran: con
+        // MinHeight más alto que la pantalla, la barra de título quedaba afuera
+        // y no había cómo mover ni cerrar la ventana.
+        private void Window_SourceInitialized(object? sender, EventArgs e)
+        {
+            var fuente = PresentationSource.FromVisual(this);
+            if (fuente?.CompositionTarget == null) return;
+            var area = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position).WorkingArea;
+            Point arribaIzq = fuente.CompositionTarget.TransformFromDevice.Transform(new Point(area.Left, area.Top));
+            Point abajoDer = fuente.CompositionTarget.TransformFromDevice.Transform(new Point(area.Right, area.Bottom));
+            var trabajo = new Rect(arribaIzq, abajoDer);
+
+            MinWidth = Math.Min(MinWidth, trabajo.Width);
+            MinHeight = Math.Min(MinHeight, trabajo.Height);
+            Width = Math.Max(MinWidth, Math.Min(Width, trabajo.Width * 0.9));
+            Height = Math.Max(MinHeight, Math.Min(Height, trabajo.Height * 0.9));
+            Left = trabajo.Left + (trabajo.Width - Width) / 2;
+            Top = trabajo.Top + (trabajo.Height - Height) / 2;
+        }
+
         private static PosicionVentana PosicionDe(Window w)
         {
             Rect r = w.WindowState == WindowState.Normal ? new Rect(w.Left, w.Top, w.Width, w.Height) : w.RestoreBounds;

@@ -222,8 +222,9 @@ def build_launcher(out):
     if not os.path.isfile(CSC):
         die(f"no está {CSC} (.NET Framework 4): no se puede compilar el lanzador")
     exe = os.path.join(out, "CONSULTOR-ACADEMICO.exe")
+    icono = os.path.join(REPO, "balanza5.ico")   # el mismo de la GUI (<ApplicationIcon> del .csproj)
     r = subprocess.run([CSC, "/nologo", "/target:winexe", "/optimize+", "/codepage:65001", f"/out:{exe}",
-                        "/r:System.Windows.Forms.dll", os.path.join(HERE, "Lanzador.cs")],
+                        f"/win32icon:{icono}", "/r:System.Windows.Forms.dll", os.path.join(HERE, "Lanzador.cs")],
                        capture_output=True, text=True, encoding="oem", errors="replace")
     if r.returncode != 0 or not os.path.isfile(exe):
         die(f"no se pudo compilar el lanzador (código {r.returncode}):\n{(r.stdout + r.stderr).strip()}")
